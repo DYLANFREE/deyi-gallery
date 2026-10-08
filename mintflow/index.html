@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta name="robots" content="noindex, follow"><meta name="deyi-site-prefix" content="/deyi-gallery"><base href="/deyi-gallery/mintflow/index.html"><link rel="canonical" href="https://xn--92tne1h89u.love/projects/mintflow"><meta property="og:type" content="article"><meta property="og:title" content="铸流 MintFlow"><meta property="og:description" content="打开即看最近 180 天 USDT 与 USDC 合计净铸造、净销毁、总供应趋势，以及 BTC、ETH 同期价格。"><meta property="og:url" content="https://dylanfree.github.io/deyi-gallery/projects/mintflow"><meta property="og:image" content="https://dylanfree.github.io/deyi-gallery/share/tools.png"><meta name="twitter:card" content="summary_large_image">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#edf5f2" />
+    <link rel="icon" href="/deyi-gallery/mintflow/favicon.svg" type="image/svg+xml" />
+    
+    <meta
+      name="description"
+      content="默认查看最近 180 天 USDT 与 USDC 合计净铸造、净销毁、总供应量，以及 BTC、ETH 同期价格走势。"
+    />
+    
+    
+    
+    
+    <title>铸流 MintFlow</title>
+    <link rel="stylesheet" href="/deyi-gallery/mintflow/styles.css" />
+  </head>
+  <body
+    data-dashboard-mode="snapshot"
+    data-data-url="/deyi-gallery/mintflow/data/cache.json"
+  >
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+
+    <header class="topbar">
+      <a class="brand" href="/deyi-gallery/themes/tools" data-deyi-return target="_top" aria-label="返回作品列表">
+        <span class="brand-mark" aria-hidden="true"><i data-lucide="activity"></i></span>
+        <span class="brand-copy">
+          <strong>铸流</strong>
+          <small>MINTFLOW</small>
+        </span>
+      </a>
+
+      <div class="header-actions">
+        <div class="source-state" id="sourceState" title="公开数据快照状态">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="sourceStateText">载入快照</span>
+        </div>
+        <button class="icon-button" id="methodButton" type="button" title="数据口径">
+          <i data-lucide="circle-help"></i>
+          <span class="sr-only">查看数据口径</span>
+        </button>
+        <button class="icon-button" id="refreshButton" type="button" title="重新载入公开快照">
+          <i data-lucide="refresh-cw"></i>
+          <span class="sr-only">重新载入公开快照</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <div class="error-banner" id="errorBanner" hidden>
+        <i data-lucide="triangle-alert"></i>
+        <span id="errorText">数据暂时无法载入。</span>
+        <button type="button" id="retryButton">重试</button>
+      </div>
+
+      <section class="dashboard-intro" aria-labelledby="pageTitle">
+        <p class="eyebrow">USDT + USDC 合计</p>
+        <h1 id="pageTitle">稳定币铸造与销毁</h1>
+        <p class="signal-sentence" id="signalSentence">正在读取最近 180 天供应数据...</p>
+        <p class="observation-line">
+          <span>最新完整 UTC 日</span>
+          <strong id="observationDate">--</strong>
+          <span aria-hidden="true">·</span>
+          <span id="fetchTime">--</span>
+        </p>
+      </section>
+
+      <section class="summary-rail" aria-label="合计与日期范围">
+        <article class="headline-metric">
+          <span>当前总供应</span>
+          <strong id="supplyValue">--</strong>
+          <small id="supplyMeta">USDT + USDC 合计</small>
+        </article>
+        <article class="headline-metric">
+          <span id="netChangeLabel">180 天净变化</span>
+          <strong id="netChangeValue">--</strong>
+          <small id="netChangeMeta">--</small>
+        </article>
+        <div class="period-control">
+          <span class="control-label">查看周期</span>
+          <div class="segmented" id="rangeControl" aria-label="查看周期">
+            <button type="button" data-range="30">30 天</button>
+            <button type="button" data-range="90">90 天</button>
+            <button type="button" data-range="180" class="is-active">180 天</button>
+            <button type="button" data-range="365">1 年</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="chart-stack">
+        <section class="chart-tool primary-chart" aria-labelledby="flowChartTitle">
+          <header class="section-heading">
+            <div>
+              <p class="section-kicker">每日合计 / 价格期初 = 100</p>
+              <h2 id="flowChartTitle">日度净铸造 / 净销毁与 BTC / ETH</h2>
+            </div>
+            <div class="chart-heading-tools">
+              <div class="price-tags" id="priceReadouts" aria-label="BTC 与 ETH 最新价格">
+                <span class="price-tag btc"><i aria-hidden="true"></i><strong>BTC</strong><b>--</b></span>
+                <span class="price-tag eth"><i aria-hidden="true"></i><strong>ETH</strong><b>--</b></span>
+              </div>
+              <div class="chart-key" aria-label="图例">
+                <span><i class="key-swatch mint"></i>净铸造</span>
+                <span><i class="key-swatch burn"></i>净销毁</span>
+              </div>
+            </div>
+          </header>
+          <div class="chart-frame flow-frame">
+            <div
+              id="flowChart"
+              class="flow-chart"
+              role="img"
+              aria-label="USDT 与 USDC 合计日度净铸造、净销毁及 BTC、ETH 同期价格走势"
+            ></div>
+          </div>
+          <footer class="chart-footnote">
+            <i data-lucide="info"></i>
+            <span>零线上方是当日合计净铸造，零线下方是当日合计净销毁；橙、蓝线分别是 BTC、ETH 的同期价格指数。柱线同图用于发现异常，不单独证明因果。</span>
+          </footer>
+        </section>
+
+        <section class="chart-tool trend-chart" aria-labelledby="supplyChartTitle">
+          <header class="section-heading">
+            <div>
+              <p class="section-kicker">USDT + USDC / 名义流通供应</p>
+              <h2 id="supplyChartTitle">稳定币总供应量趋势</h2>
+            </div>
+            <p class="trend-readout" id="trendReadout">--</p>
+          </header>
+          <div class="chart-frame supply-frame">
+            <div
+              id="supplyChart"
+              class="supply-chart"
+              role="img"
+              aria-label="USDT 与 USDC 合计总供应量趋势图"
+            ></div>
+          </div>
+          <footer class="chart-footnote">
+            <i data-lucide="waves"></i>
+            <span>这条线只回答总量是在扩张还是收缩。铸造与销毁是流动性倾向的代理，不等同于已经发生的现货买入或卖出。</span>
+          </footer>
+        </section>
+      </div>
+    </main>
+
+    <footer class="page-footer">
+      <div>
+        <strong>铸流 MintFlow</strong>
+        <span>先看总量，再看异常；不把供应变化直接当成交易信号。</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://defillama.com/stablecoins" target="_blank" rel="noreferrer">DeFiLlama</a>
+        <a href="https://www.coinbase.com/exchange" target="_blank" rel="noreferrer">Coinbase</a>
+        <a href="https://tether.to/en/transparency/" target="_blank" rel="noreferrer">Tether</a>
+        <a href="https://www.circle.com/transparency" target="_blank" rel="noreferrer">Circle</a>
+      </div>
+    </footer>
+
+    <dialog class="method-dialog" id="methodDialog">
+      <div class="dialog-header">
+        <div>
+          <p class="section-kicker">口径与边界</p>
+          <h2>这两张图究竟测量什么</h2>
+        </div>
+        <button class="icon-button" id="closeMethodButton" type="button" title="关闭">
+          <i data-lucide="x"></i>
+          <span class="sr-only">关闭</span>
+        </button>
+      </div>
+      <div class="method-content">
+        <section>
+          <span class="method-index">01</span>
+          <div>
+            <h3>只看 USDT + USDC 合计</h3>
+            <p>总供应量按两种稳定币的跨链流通供应直接相加，金额按稳定币面值计算，不使用价格波动后的市值。</p>
+          </div>
+        </section>
+        <section>
+          <span class="method-index">02</span>
+          <div>
+            <h3>柱子表示每日净变化</h3>
+            <p>每日净变化 = 当日合计供应量 - 前一日合计供应量。正值记为净铸造，负值记为净销毁；页面不设置额外门槛，所有有效日都显示。</p>
+          </div>
+        </section>
+        <section>
+          <span class="method-index">03</span>
+          <div>
+            <h3>它是流动性代理，不是成交事实</h3>
+            <p>铸造通常意味着潜在流动性增加，销毁通常意味着流动性退出倾向，但代币可能仍在财库，也可能涉及换发或跨链操作。它们不等同于已经发生的现货买入或卖出。</p>
+          </div>
+        </section>
+        <section>
+          <span class="method-index">04</span>
+          <div>
+            <h3>价格只做同期参照</h3>
+            <p>BTC 与 ETH 都以所选周期首个有效收盘价归一为 100，悬停显示真实美元收盘价。供应与价格放在同一日期上方便观察，但不据此宣称因果。</p>
+          </div>
+        </section>
+        <section>
+          <span class="method-index">05</span>
+          <div>
+            <h3>数据来源与更新</h3>
+            <p>供应数据来自 DeFiLlama Stablecoins API；BTC、ETH 价格优先来自 Coinbase 日线，失败时回退到 DeFiLlama 日度收盘价。公开版读取最近一次按需发布的有效数据快照，不在浏览器里直接访问上游。</p>
+          </div>
+        </section>
+      </div>
+      <div class="method-sources">
+        <span>一手与数据源</span>
+        <a href="https://tether.to/en/transparency/" target="_blank" rel="noreferrer">Tether Transparency <i data-lucide="arrow-up-right"></i></a>
+        <a href="https://www.circle.com/transparency" target="_blank" rel="noreferrer">Circle Transparency <i data-lucide="arrow-up-right"></i></a>
+        <a href="https://defillama.com/stablecoins" target="_blank" rel="noreferrer">DeFiLlama Stablecoins <i data-lucide="arrow-up-right"></i></a>
+        <a href="https://www.coinbase.com/exchange" target="_blank" rel="noreferrer">Coinbase Exchange <i data-lucide="arrow-up-right"></i></a>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="loading-layer" id="loadingLayer" aria-live="polite">
+      <span class="loading-mark"><i data-lucide="activity"></i></span>
+      <strong>正在读取 180 天供应变化</strong>
+      <span>对齐 USDT、USDC 与 BTC、ETH 日度数据...</span>
+    </div>
+
+    <script src="/deyi-gallery/mintflow/vendor/echarts.min.js"></script>
+    <script src="/deyi-gallery/mintflow/vendor/lucide.min.js"></script>
+    <script type="module" src="/deyi-gallery/mintflow/app.js"></script>
+  <a href="/deyi-gallery/themes/tools" target="_top" data-deyi-return style="position:fixed;right:12px;bottom:12px;z-index:2147483000;padding:7px 12px;border:1px solid #789184;border-radius:20px;background:#f4f2e9;color:#214834;font:12px/1.5 system-ui;text-decoration:none;box-shadow:0 2px 9px #0001">← 得易忘形</a><script data-deyi-navigation>(()=>{try{const key='deyi-gallery-return',state=JSON.parse(sessionStorage.getItem(key)||'null'),prefix=document.querySelector?.('meta[name="deyi-site-prefix"]')?.content||'',local=state&&typeof state.url==='string'?(prefix?(state.url.startsWith(prefix+'/')?state.url.slice(prefix.length):'invalid'):state.url):'invalid';if(state&&typeof state.url==='string'&&/^\/(?:archive\/?(?:\?|$)|themes\/[a-z-]+\/?$|$)/.test(local)&&Number.isFinite(state.at)&&Date.now()-state.at<=3600000&&Number.isFinite(state.scroll)){document.querySelectorAll('[data-deyi-return]').forEach(link=>{link.href=state.url;link.addEventListener('click',()=>{try{sessionStorage.setItem(key,JSON.stringify({...state,restore:true}))}catch{}})})}}catch{}})();</script></body>
+</html>

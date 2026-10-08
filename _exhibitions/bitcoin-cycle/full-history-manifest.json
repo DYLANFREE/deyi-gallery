@@ -1,0 +1,202 @@
+{
+  "meta": {
+    "start": "2011-01-01",
+    "priceThrough": "2026-10-06",
+    "modelThrough": "2026-10-05",
+    "preparedAt": "2026-10-07",
+    "source": "Coin Metrics PriceUSD / UTC daily close",
+    "seasonRule": "At each actual halving reset to summer; summer/autumn/winter are 365 days each, spring continues until the next actual halving. Before first halving, infer backwards from 2012-11-28 in 365-day seasons.",
+    "modelFormula": "exp(14.6) * ((SplyCur - 1000000) / trailing365dayIssuance) ** 3.3 / SplyCur",
+    "modelRefitted": false,
+    "publicationDay": 17977,
+    "latestPrice": 85523.2317733255,
+    "latestModel": 726969.9433274586,
+    "missingPrice": [],
+    "missingModel": [
+      "2026-10-06"
+    ],
+    "sourceUpdates": [
+      {
+        "date": "2026-10-05",
+        "field": "SplyCur",
+        "before": null,
+        "after": "20093951.1258858"
+      }
+    ]
+  },
+  "points": 5758,
+  "bands": [
+    {
+      "name": "冬",
+      "inferred": true,
+      "anchor": "2012-11-28",
+      "start": 14975,
+      "end": 15307,
+      "startDate": "2011-01-01",
+      "endDateExclusive": "2011-11-29"
+    },
+    {
+      "name": "春",
+      "inferred": true,
+      "anchor": "2012-11-28",
+      "start": 15307,
+      "end": 15672,
+      "startDate": "2011-11-29",
+      "endDateExclusive": "2012-11-28"
+    },
+    {
+      "name": "夏",
+      "inferred": false,
+      "anchor": "2012-11-28",
+      "start": 15672,
+      "end": 16037,
+      "startDate": "2012-11-28",
+      "endDateExclusive": "2013-11-28"
+    },
+    {
+      "name": "秋",
+      "inferred": false,
+      "anchor": "2012-11-28",
+      "start": 16037,
+      "end": 16402,
+      "startDate": "2013-11-28",
+      "endDateExclusive": "2014-11-28"
+    },
+    {
+      "name": "冬",
+      "inferred": false,
+      "anchor": "2012-11-28",
+      "start": 16402,
+      "end": 16767,
+      "startDate": "2014-11-28",
+      "endDateExclusive": "2015-11-28"
+    },
+    {
+      "name": "春",
+      "inferred": false,
+      "anchor": "2012-11-28",
+      "start": 16767,
+      "end": 16991,
+      "startDate": "2015-11-28",
+      "endDateExclusive": "2016-07-09"
+    },
+    {
+      "name": "夏",
+      "inferred": false,
+      "anchor": "2016-07-09",
+      "start": 16991,
+      "end": 17356,
+      "startDate": "2016-07-09",
+      "endDateExclusive": "2017-07-09"
+    },
+    {
+      "name": "秋",
+      "inferred": false,
+      "anchor": "2016-07-09",
+      "start": 17356,
+      "end": 17721,
+      "startDate": "2017-07-09",
+      "endDateExclusive": "2018-07-09"
+    },
+    {
+      "name": "冬",
+      "inferred": false,
+      "anchor": "2016-07-09",
+      "start": 17721,
+      "end": 18086,
+      "startDate": "2018-07-09",
+      "endDateExclusive": "2019-07-09"
+    },
+    {
+      "name": "春",
+      "inferred": false,
+      "anchor": "2016-07-09",
+      "start": 18086,
+      "end": 18393,
+      "startDate": "2019-07-09",
+      "endDateExclusive": "2020-05-11"
+    },
+    {
+      "name": "夏",
+      "inferred": false,
+      "anchor": "2020-05-11",
+      "start": 18393,
+      "end": 18758,
+      "startDate": "2020-05-11",
+      "endDateExclusive": "2021-05-11"
+    },
+    {
+      "name": "秋",
+      "inferred": false,
+      "anchor": "2020-05-11",
+      "start": 18758,
+      "end": 19123,
+      "startDate": "2021-05-11",
+      "endDateExclusive": "2022-05-11"
+    },
+    {
+      "name": "冬",
+      "inferred": false,
+      "anchor": "2020-05-11",
+      "start": 19123,
+      "end": 19488,
+      "startDate": "2022-05-11",
+      "endDateExclusive": "2023-05-11"
+    },
+    {
+      "name": "春",
+      "inferred": false,
+      "anchor": "2020-05-11",
+      "start": 19488,
+      "end": 19833,
+      "startDate": "2023-05-11",
+      "endDateExclusive": "2024-04-20"
+    },
+    {
+      "name": "夏",
+      "inferred": false,
+      "anchor": "2024-04-20",
+      "start": 19833,
+      "end": 20198,
+      "startDate": "2024-04-20",
+      "endDateExclusive": "2025-04-20"
+    },
+    {
+      "name": "秋",
+      "inferred": false,
+      "anchor": "2024-04-20",
+      "start": 20198,
+      "end": 20563,
+      "startDate": "2025-04-20",
+      "endDateExclusive": "2026-04-20"
+    },
+    {
+      "name": "冬",
+      "inferred": false,
+      "anchor": "2024-04-20",
+      "start": 20563,
+      "end": 20733,
+      "startDate": "2026-04-20",
+      "endDateExclusive": "2026-10-07"
+    }
+  ],
+  "sources": [
+    {
+      "file": "coinmetrics-base-20261006.json",
+      "sha256": "920b7e796afe5ee396fa1899aec27d872bb661020f93804c5665eb431d2741e3"
+    },
+    {
+      "file": "coinmetrics-tail-20261007.json",
+      "sha256": "700c37c0692328a4a8e9b37bddc7b595ddddd0e2f8fad74c7155e5b64ea7e6b0"
+    }
+  ],
+  "baseApi": "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=PriceUSD,SplyCur,IssTotNtv,BlkCnt&frequency=1d&start_time=2009-01-03&end_time=2026-10-05&page_size=10000",
+  "tailApi": "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=PriceUSD,SplyCur,IssTotNtv,BlkCnt&frequency=1d&start_time=2026-10-03&end_time=2026-10-06&page_size=100",
+  "reference": "https://charts.bitbo.io/stock-to-flow/",
+  "checks": {
+    "contiguousSourceDates": true,
+    "noMissingOrOverlappingSeasonBands": true,
+    "noFuturePrices": true,
+    "halvingAnd365DayEdges": true
+  }
+}

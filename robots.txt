@@ -1,0 +1,8 @@
+User-Agent: *
+Allow: /
+Disallow: /_exhibitions/
+Disallow: /mintflow/
+Disallow: /_savenow/
+Disallow: /_imports/
+
+Sitemap: https://dylanfree.github.io/deyi-gallery/sitemap.xml

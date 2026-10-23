@@ -1,0 +1,115 @@
+{
+  "source": "ImageGen textless derivative of the human-approved living-paper mockup",
+  "sourceSha256": "01346d1813b38116619e101ef2ea0b434a0a92eae633104316bf6a434ee9e817",
+  "dimensions": {
+    "width": 1536,
+    "height": 1024
+  },
+  "decorativeOnly": true,
+  "assets": [
+    {
+      "file": "theme-ai-future.webp",
+      "width": 278,
+      "height": 375,
+      "bytes": 16802,
+      "sha256": "4870a6af5a85e8d6c39ead89d2a24c9c18a6503ae8a9f6c8154c920188006ed4",
+      "crop": {
+        "left": 49,
+        "top": 305,
+        "width": 278,
+        "height": 375
+      }
+    },
+    {
+      "file": "theme-markets.webp",
+      "width": 271,
+      "height": 375,
+      "bytes": 22030,
+      "sha256": "f3fd615c88ed76d5ed4e34d366b8c524c724fb935445286b8f138627610ddc4c",
+      "crop": {
+        "left": 346,
+        "top": 305,
+        "width": 271,
+        "height": 375
+      }
+    },
+    {
+      "file": "theme-mind-growth.webp",
+      "width": 269,
+      "height": 375,
+      "bytes": 16056,
+      "sha256": "81ec9a117ca405cd953d801be644308b1496e3cbc39e9cc3b3e0d6456b6952a0",
+      "crop": {
+        "left": 634,
+        "top": 305,
+        "width": 269,
+        "height": 375
+      }
+    },
+    {
+      "file": "theme-yi-change.webp",
+      "width": 271,
+      "height": 375,
+      "bytes": 11898,
+      "sha256": "b6bcac7189874f35ec92ab6cf7a5294af2bba94daec5165fc4cf2f472cf8510a",
+      "crop": {
+        "left": 921,
+        "top": 305,
+        "width": 271,
+        "height": 375
+      }
+    },
+    {
+      "file": "theme-tools.webp",
+      "width": 278,
+      "height": 375,
+      "bytes": 9736,
+      "sha256": "ca9e73bc2cefc9029c357be1b7b8977c779d5301ff6d7e5c9c612723a73225fd",
+      "crop": {
+        "left": 1210,
+        "top": 305,
+        "width": 278,
+        "height": 375
+      }
+    },
+    {
+      "file": "reading-branch.webp",
+      "width": 476,
+      "height": 239,
+      "bytes": 28034,
+      "sha256": "cc76f84b6b683d6301b0ff3aa5998aec37d81d2e49e7b32fd209d8af37e92cfa",
+      "crop": {
+        "left": 49,
+        "top": 744,
+        "width": 476,
+        "height": 239
+      }
+    },
+    {
+      "file": "reading-garden.webp",
+      "width": 458,
+      "height": 239,
+      "bytes": 38004,
+      "sha256": "a142ce0ef24e76c7773de5158a59a640d3d668a59168dd83fd54b8c98b9df011",
+      "crop": {
+        "left": 540,
+        "top": 744,
+        "width": 458,
+        "height": 239
+      }
+    },
+    {
+      "file": "reading-meadow.webp",
+      "width": 475,
+      "height": 239,
+      "bytes": 26688,
+      "sha256": "a1f56d46b226979ebb3d573425a6ffb6688f9e0dcda928ce1d42845cffbc8d4c",
+      "crop": {
+        "left": 1013,
+        "top": 744,
+        "width": 475,
+        "height": 239
+      }
+    }
+  ]
+}

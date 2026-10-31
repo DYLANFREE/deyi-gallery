@@ -58,13 +58,20 @@ document.body.append(layer);
 let vw=innerWidth;addEventListener('resize',()=>{vw=innerWidth;for(const p of pets)p.x=Math.min(p.x,vw-SIZES[p.id]-MARGIN);});
 pets.forEach(p=>{p.el.style.width=SIZES[p.id]+'px';p.el.style.height=SIZES[p.id]+'px';});
 function nextLine(p){if(!p.bag.length)p.bag=shuffle(quotes[p.id].slice());return p.bag.pop()||null;}
+function layoutBubble(p){
+  // 气泡按内容定宽，同时保证不超出屏幕左右边
+  p.bubble.style.left='50%';
+  const bw=p.bubble.offsetWidth;
+  if(bw){const petW=SIZES[p.id];const center=Math.max(bw/2+10,Math.min(vw-bw/2-10,p.x+petW/2));p.bubble.style.left=(center-p.x)+'px';}
+}
 function say(p,text,ms){
   p.state='speak';p.bubble.textContent=Array.from(text).slice(0,64).join('')+(Array.from(text).length>64?'…':'');
-  p.bubble.hidden=false;p.speakUntil=performance.now()+ms;
+  p.bubble.hidden=false;layoutBubble(p);p.speakUntil=performance.now()+ms;
 }
 function speak(p){const line=nextLine(p);if(!line){p.next=performance.now()+8000;return;}say(p,line,6200+Math.random()*1800);}
 function restReminder(p,now){
   p.state='rest';p.restUntil=now+REST_DURATION_MS;p.figure.classList.add('rp-rest-figure');
+  p.bubble.classList.add('rp-rest-bubble');
   p.bubble.hidden=false;p.bubble.textContent=p.rest;p.speakUntil=now+REST_DURATION_MS;
 }
 function moodOf(p){if(!MOODS.length)return 'normal';return Math.random()<0.55?'normal':MOODS[Math.floor(Math.random()*MOODS.length)];}
@@ -99,8 +106,9 @@ function tick(now){
     }else if(p.state==='rest'){
       const cx=Math.max(0,(vw-SIZES[p.id])/2);
       p.el.style.transform=`translateX(${cx}px)`;
+      p.bubble.style.left='50%';
       if(now>p.restUntil){
-        p.bubble.hidden=true;p.figure.classList.remove('rp-rest-figure');
+        p.bubble.hidden=true;p.figure.classList.remove('rp-rest-figure');p.bubble.classList.remove('rp-rest-bubble');
         p.state='walk';p.next=performance.now()+10000+Math.random()*20000;
       }
     }else if(p.state==='pause'){

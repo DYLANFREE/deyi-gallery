@@ -1,6 +1,7 @@
 (()=>{'use strict';
 // 木火水小人：在页面底部空白处走动，随机飘出她们真实说过的话。
-// 数据只来自同桌 feed（真实原话）；取不到就安静走路，不编台词。
+// 数据只来自同桌 feed 里 humanize-v2 上线（2026-10-31）之后的新原话；历史旧话不播。
+// 新话还没出现时安静走路，不编台词。
 // 人物：直接用 images/residents/<id>.webp 做小人卡（圆角+投影+走路摇摆的3D感）。
 // 多套衣服：按心情切换，命名约定 images/residents/<id>-<mood>.webp（如 wood-happy.webp），
 // 俊后续加图即可自动生效；缺哪套自动落回默认图。页面可设 window.RESIDENT_PETS_OUTFITS 覆盖。
@@ -30,8 +31,13 @@ if(window.RESIDENT_PETS_OUTFITS){for(const id of Object.keys(outfits)){if(window
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function loadFeed(raw){
   if(raw?.format!=='deyi-shared-tables-v1'||!Array.isArray(raw.tables))return;
+  // 只播新表达层（humanize-v2 2026-10-31 上线）之后的真实原话，历史旧话不播。
+  const CUTOFF=Date.parse('2026-10-31T07:00:00Z');
   for(const t of raw.tables)for(const m of t.messages||[]){
-    if(PEOPLE[m.resident]&&typeof m.body==='string'&&m.body.trim())quotes[m.resident].push(m.body.trim());
+    if(!PEOPLE[m.resident]||typeof m.body!=='string'||!m.body.trim())continue;
+    const at=Date.parse(m.createdAt);
+    if(!Number.isFinite(at)||at<CUTOFF)continue;
+    quotes[m.resident].push(m.body.trim());
   }
 }
 if(Array.isArray(window.RESIDENT_PETS_QUOTES)){for(const q of window.RESIDENT_PETS_QUOTES){if(PEOPLE[q.resident]&&typeof q.body==='string'&&q.body.trim())quotes[q.resident].push(q.body.trim());}}

@@ -1,8 +1,16 @@
 /* 木火水小人：页面底部空白处走动，随机飘出真实原话。最少必要，不挡内容。 */
-.rp-layer{position:fixed;left:0;right:0;bottom:0;height:140px;pointer-events:none;z-index:60}
-.rp-pet{position:absolute;left:0;bottom:0;width:44px;height:44px;opacity:.95;filter:drop-shadow(0 2px 4px rgba(0,0,0,.16))}
-.rp-pet img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--c);background:#fff}
-.rp-bubble{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);max-width:240px;background:#fff;border:1.5px solid var(--c);border-radius:12px;padding:8px 11px;font-size:13px;line-height:1.6;color:#2b2620;box-shadow:0 3px 10px rgba(0,0,0,.12)}
+.rp-layer{position:fixed;left:0;right:0;bottom:0;height:176px;pointer-events:none;z-index:60}
+.rp-pet{position:absolute;left:0;bottom:0;transform-origin:bottom center}
+.rp-figure{width:100%;height:100%;border-radius:14px;overflow:hidden;border:2px solid var(--c);
+  box-shadow:0 8px 16px rgba(0,0,0,.24),0 2px 4px rgba(0,0,0,.18),inset 0 0 0 1px rgba(255,255,255,.35);
+  transition:transform .35s ease}
+.rp-figure img{width:100%;height:100%;object-fit:cover;display:block}
+.rp-shadow{position:absolute;left:14%;right:14%;bottom:-9px;height:10px;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(0,0,0,.30) 0%,rgba(0,0,0,.12) 55%,transparent 75%);
+  filter:blur(2px)}
+.rp-rest-figure{transform:scale(1.6)}
+.rp-bubble{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);max-width:240px;background:#fff;border:1.5px solid var(--c);border-radius:12px;padding:8px 11px;font-size:13px;line-height:1.6;color:#2b2620;box-shadow:0 4px 12px rgba(0,0,0,.14)}
 .rp-bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--c)}
 .rp-bubble[hidden]{display:none}
 @media (max-width:880px){.rp-layer{display:none}}
+@media (prefers-reduced-motion: reduce){.rp-figure{transition:none}}

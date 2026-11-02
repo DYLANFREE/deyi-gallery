@@ -28,7 +28,8 @@ function normalize(value){
       if(!Array.isArray(m.citations||[])||(m.citations||[]).length>10)throw Error('invalid_resident_citations');
       return{id:m.id,resident:m.resident,body:m.body,replyTo:m.replyTo||null,createdAt:m.createdAt,sequence:m.sequence,citations:(m.citations||[]).map(citation),...(m.provenance?{provenance:m.provenance}:{})};
     });
-    return{id:t.id,title:t.title,state:t.state==='active'?'active':'resting',createdAt:t.createdAt,updatedAt:t.updatedAt,source,messages};
+    if(t.mode!==undefined&&!['solo','table','legacy'].includes(t.mode))throw Error('invalid_resident_table_mode');
+    return{id:t.id,mode:t.mode||'legacy',title:t.title,state:t.state==='active'?'active':'resting',createdAt:t.createdAt,updatedAt:t.updatedAt,source,messages};
   });
   const activities=(value.activities||[]).map(a=>{
     if(typeof a.id!=='string'||a.id.length>160||!IDS.includes(a.resident)||!Number.isInteger(a.round)||a.round<1||a.round>5||!['spoken','quiet','failed','blocked','deferred','running','uncertain'].includes(a.state)||!stamp(a.createdAt)||a.finishedAt!==undefined&&a.finishedAt!==null&&!stamp(a.finishedAt)||!Array.isArray(a.messageIds)||a.messageIds.some(id=>!digest.test(id)))throw Error('invalid_resident_activity');
@@ -36,6 +37,13 @@ function normalize(value){
   });
   if(activities.length>15)throw Error('too_many_resident_activities');
   return{format:'deyi-shared-tables-v1',provenance:value.provenance,revision:value.revision,publishedAt:value.publishedAt||value.updatedAt,updatedAt:value.updatedAt,preview:value.preview===true||value.provenance==='private-real-hermes',tables,activities};
+}
+// Only explicit solo records belong on the living surface. A first message
+// in a group conversation is still conversation, even before anyone replies.
+function independentMessages(feed,resident,since){
+  return (feed?.tables||[]).filter(t=>t.mode==='solo'&&t.messages.length&&new Set(t.messages.map(m=>m.resident)).size===1&&t.messages.every(m=>!m.replyTo))
+    .flatMap(t=>t.messages).filter(m=>(!resident||m.resident===resident)&&Date.parse(m.createdAt)>=(Date.parse(since)||Infinity))
+    .sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||a.id.localeCompare(b.id));
 }
 function endpointFor(value,location){
   const fallback=localHost(location.hostname)?new URL('/api/residents/tables',location.href):new URL('https://45.134.36.23/api/residents/tables');
@@ -47,7 +55,7 @@ function endpointFor(value,location){
   }else if(url.protocol!=='https:'||url.hostname!=='45.134.36.23')throw Error('resident_endpoint_refused');
   return url.href;
 }
-function makeClient({location,storage,fetcher,schedule,cancel,endpoint,interval=180000}){
+function makeClient({location,storage,fetcher,schedule,cancel,endpoint,interval=180000,since}){
   const url=endpointFor(endpoint,location),cacheKey='deyi-resident-live-v2:'+url;
   const listeners=new Set();let timer=null,inFlight=null,started=false;
   let state={feed:null,loading:true,unavailable:false,receivedAt:null};
@@ -68,14 +76,14 @@ function makeClient({location,storage,fetcher,schedule,cancel,endpoint,interval=
       return state;
     })();return inFlight;
   }
-  return{endpoint:url,getState:()=>state,subscribe(fn){listeners.add(fn);fn(state);return()=>listeners.delete(fn);},refresh,start(){if(!started){started=true;refresh();}return this;},stop(){started=false;if(timer!==null)cancel(timer);timer=null;}};
+  return{endpoint:url,getState:()=>state,independentMessages:resident=>independentMessages(state.feed,resident,since),subscribe(fn){listeners.add(fn);fn(state);return()=>listeners.delete(fn);},refresh,start(){if(!started){started=true;refresh();}return this;},stop(){started=false;if(timer!==null)cancel(timer);timer=null;}};
 }
-if(typeof module!=='undefined'&&module.exports)module.exports={normalize,endpointFor,makeClient};
+if(typeof module!=='undefined'&&module.exports)module.exports={normalize,endpointFor,makeClient,independentMessages};
 if(!root||!root.document||root.DeyiResidentFeed)return;
 const script=root.document.currentScript;
 try{
   const storage={getItem(key){try{return root.localStorage.getItem(key);}catch{return null;}},setItem(key,value){try{root.localStorage.setItem(key,value);}catch{}}};
-  root.DeyiResidentFeed=makeClient({location:root.location,storage,fetcher:root.fetch.bind(root),schedule:root.setTimeout.bind(root),cancel:root.clearTimeout.bind(root),endpoint:script?.dataset.endpoint||root.document.querySelector('meta[name="resident-table-feed"]')?.content});
+  root.DeyiResidentFeed=makeClient({location:root.location,storage,fetcher:root.fetch.bind(root),schedule:root.setTimeout.bind(root),cancel:root.clearTimeout.bind(root),endpoint:script?.dataset.endpoint||root.document.querySelector('meta[name="resident-table-feed"]')?.content,since:root.document.querySelector('meta[name="resident-independent-since"]')?.content});
   root.DeyiResidentFeed.start();root.dispatchEvent(new Event('deyi-resident-feed-ready'));
 }catch{root.dispatchEvent(new Event('deyi-resident-feed-error'));}
 })(typeof window==='undefined'?null:window);

@@ -1,6 +1,6 @@
 (()=>{'use strict';
 // 木火水小人：在页面底部空白处走动，随机飘出她们真实说过的话。
-// 数据只来自同桌 feed 里 humanize-v2 上线（2026-10-31）之后的新原话；历史旧话不播。
+// 首页只播明确标记的独立留话；同桌聊天和未标记的旧记录只在住处历史阅读。
 // 新话还没出现时安静走路，不编台词。
 // 人物：直接用 images/residents/<id>.webp 做小人卡（圆角+投影+走路摇摆的3D感）。
 // 多套衣服：按心情切换，命名约定 images/residents/<id>-<mood>.webp（如 wood-happy.webp），
@@ -41,7 +41,7 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 const CUTOFF=Date.parse('2026-10-31T07:00:00Z');
 function loadFeed(state){
   const next={wood:[],fire:[],water:[]};
-  for(const table of state.feed?.tables||[])for(const message of table.messages){
+  for(const message of window.DeyiResidentFeed?.independentMessages()||[]){
     if(Date.parse(message.createdAt)>=CUTOFF)next[message.resident].push(message);
   }
   for(const id of Object.keys(quotes)){

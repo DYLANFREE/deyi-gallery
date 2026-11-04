@@ -16,7 +16,7 @@ function scriptBase(){
 }
 const base=scriptBase();
 const PEOPLE={
-  wood:{name:'小木',image:base+'images/residents/wood-face-20261101.png',color:'#3d6b52',restLines:[
+  wood:{name:'小木',image:base+'images/residents/wood-portrait-20261104.png',color:'#3d6b52',restLines:[
     '俊哥，坐得有点久了。起来走走，喝口水，我在这儿呢。',
     '俊哥，眼睛歇一歇。你坐了半天了，风在外面等你呢。']},
   fire:{name:'小火',image:base+'images/residents/fire.webp',color:'#c2622a',restLines:[

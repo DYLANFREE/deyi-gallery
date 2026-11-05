@@ -2,31 +2,41 @@
 // 木火水小人：在页面底部空白处走动，随机飘出她们真实说过的话。
 // 首页只播明确标记的独立留话；同桌聊天和未标记的旧记录只在住处历史阅读。
 // 新话还没出现时安静走路，不编台词。
-// 人物：直接用 images/residents/<id>.webp 做小人卡（圆角+投影+走路摇摆的3D感）。
-// 多套衣服：按心情切换，命名约定 images/residents/<id>-<mood>.webp（如 wood-happy.webp），
-// 俊后续加图即可自动生效；缺哪套自动落回默认图。页面可设 window.RESIDENT_PETS_OUTFITS 覆盖。
+// 小人头像取自「歇」的三张插画，使用轻量预览图。
+// 页面可用 window.RESIDENT_PETS_OUTFITS 注册服装，加载失败时回到默认头像。
 // 休息接管（木火水版 Cat Gatekeeper，自写实现）：页面连续停留满 REST_AFTER_MS 后，
 // 一位驻馆者慢慢出现、占满屏幕接管页面（遮罩挡住内容），停留 BREAK_MS 后自己回去；
 // 不想等可点「让她先走」。切走标签页重新计时。右下角小圆钮可主动触发。
 // 与住处共用 DeyiResidentFeed，更新是完整快照替换；无新话就安静。
-if(matchMedia('(max-width: 880px)').matches)return;
+const compactView=()=>matchMedia('(max-width: 880px)').matches;
 function scriptBase(){
   try{const src=document.currentScript?.src||'';const u=new URL(src||location.href);return u.origin+u.pathname.replace(/[^/]*$/,'');}
   catch{const u=new URL(location.href);return u.origin+u.pathname.replace(/[^/]*$/,'');}
 }
 const base=scriptBase();
+const portraitBase=base+'images/residents/pets-anime/v1/';
 const PEOPLE={
-  wood:{name:'小木',image:base+'images/residents/wood-portrait-20261104.png',color:'#3d6b52',restLines:[
+  wood:{name:'小木',image:portraitBase+'wood.webp',color:'#3d6b52',restLines:[
     '俊哥，坐得有点久了。起来走走，喝口水，我在这儿呢。',
     '俊哥，眼睛歇一歇。你坐了半天了，风在外面等你呢。']},
-  fire:{name:'小火',image:base+'images/residents/fire.webp',color:'#c2622a',restLines:[
+  fire:{name:'小火',image:portraitBase+'fire.webp',color:'#c2622a',restLines:[
     '喂，眼睛都直了。站起来活动一下，别把身子熬坏了。',
     '行了，屏幕先放一放。身子是炉子，不能光烧不加柴。']},
-  water:{name:'小水',image:base+'images/residents/water.webp',color:'#3a6ea5',restLines:[
+  water:{name:'小水',image:portraitBase+'water.webp',color:'#3a6ea5',restLines:[
     '该歇口气啦。起来伸个懒腰，回来再继续。',
     '水都坐浑了。起来走两步，让它重新流起来。']},
 };
-const BREAK_ORDER=['wood','fire','water']; // 轮流来，记住上次是谁
+// 每日动漫图由只读来源更新，首批图作为初始显示。
+const REST_ART=[
+  {id:'wood',title:'窗边读书',file:'wood-reading.webp'},
+  {id:'fire',title:'灯下倒茶',file:'fire-tea.webp'},
+  {id:'water',title:'雨窗听雨',file:'water-rain.webp'},
+];
+const REST_TITLES={
+  wood:{normal:'窗边读书',happy:'午后茶歇',quiet:'靠窗放空'},
+  fire:{normal:'整理书架',happy:'灯下倒茶',quiet:'夜色与书'},
+  water:{normal:'雨后翻书',happy:'水边茶歇',quiet:'雨窗听雨'},
+};
 // 这层只展示已有图片。浏览、悬停与休息提醒都不触发图片模型。
 const MOODS=['happy','quiet']; // 只切换实际注册的服装，默认保持原立绘
 const FAST=new URLSearchParams(location.search).has('pets-fast'); // 测试钩子：短计时看休息接管
@@ -118,86 +128,120 @@ pets.forEach((p,i)=>{
 });
 
 // ── 休息接管（Cat Gatekeeper 式：出现、占屏、停留、可提前请走）──
-let breakEl=null,breakTimer=0;
+let breakEl=null,breakTimer=0,breakClosing=false,breakReturnFocus=null;
 function buildBreak(){
-  const veil=document.createElement('div');veil.className='rp-break';veil.setAttribute('role','dialog');veil.setAttribute('aria-label','休息提醒');
+  const veil=document.createElement('div');veil.className='rp-break';veil.setAttribute('role','dialog');veil.setAttribute('aria-label','休息插画');veil.setAttribute('aria-modal','true');
+  const stage=document.createElement('div');stage.className='rp-break-stage';
   const card=document.createElement('div');card.className='rp-break-card';
-  const img=document.createElement('img');img.alt='';img.width=240;img.height=240;img.draggable=false;
+  const img=document.createElement('img');img.alt='';img.width=960;img.height=1280;img.draggable=false;
+  const empty=document.createElement('div');empty.className='rp-break-empty';empty.hidden=true;empty.textContent='插画暂时没能打开';
   const bubble=document.createElement('div');bubble.className='rp-break-bubble';
   const foot=document.createElement('div');foot.className='rp-break-foot';
-  const pedestal=document.createElement('div');pedestal.className='rp-break-pedestal';
-  const glow=document.createElement('div');glow.className='rp-break-glow';
   const note=document.createElement('div');note.className='rp-break-note';
   const caption=document.createElement('div');caption.className='rp-break-image-caption';
+  const counter=document.createElement('div');counter.className='rp-break-counter';counter.setAttribute('aria-live','polite');counter.setAttribute('aria-atomic','true');
+  const previous=document.createElement('button');previous.type='button';previous.className='rp-break-arrow';previous.setAttribute('aria-label','上一张插画');previous.textContent='‹';
+  const next=document.createElement('button');next.type='button';next.className='rp-break-arrow';next.setAttribute('aria-label','下一张插画');next.textContent='›';
   const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='rp-break-dismiss';dismiss.textContent='让她先走';
-  card.append(img);foot.append(caption,note,dismiss);veil.append(bubble,card,pedestal,glow,foot);
+  card.append(img,empty);stage.append(previous,card,next);foot.append(counter,caption,note,dismiss);veil.append(bubble,stage,foot);
   img.referrerPolicy='no-referrer';
-  img.addEventListener('error',()=>{const imageId=img.dataset.imageId;if(!imageId)return;img.dataset.imageId='';img.src=PEOPLE[veil.dataset.who].image;window.DeyiResidentImages?.markAssetFailed(imageId);syncBreakImage();});
+  img.addEventListener('error',()=>{
+    if(!breakEl?.selected||breakClosing)return;
+    const failed=availableArt().find(item=>item.key===breakEl.selected);
+    breakEl.failed.add(breakEl.selected);
+    if(failed?.imageId)window.DeyiResidentRestImages?.markAssetFailed(failed.imageId);
+    syncBreakArt();
+  });
   dismiss.addEventListener('click',hideBreak);
-  return{veil,card,img,bubble,note,caption,dismiss,glow,pedestal};
+  previous.addEventListener('click',()=>moveBreakPhoto(-1));next.addEventListener('click',()=>moveBreakPhoto(1));
+  veil.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){event.preventDefault();hideBreak();return;}
+    if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();moveBreakPhoto(event.key==='ArrowRight'?1:-1);return;}
+    if(event.key==='Tab'){
+      const controls=[previous,next,dismiss].filter(button=>!button.disabled),first=controls[0],last=controls.at(-1);
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    }
+  });
+  let swipe=null;
+  card.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'||event.pointerType==='pen'){swipe={id:event.pointerId,x:event.clientX,y:event.clientY};try{card.setPointerCapture?.(event.pointerId);}catch{}}});
+  card.addEventListener('pointerup',event=>{
+    if(!swipe||swipe.id!==event.pointerId)return;
+    const dx=event.clientX-swipe.x,dy=event.clientY-swipe.y;swipe=null;
+    if(Math.abs(dx)>=48&&Math.abs(dx)>Math.abs(dy)*1.3)moveBreakPhoto(dx<0?1:-1);
+  });
+  card.addEventListener('pointercancel',()=>{swipe=null;});
+  return{veil,img,empty,bubble,note,caption,counter,previous,next,dismiss,selected:null,resident:null,position:0,failed:new Set(),browsing:false};
 }
 function showBreak(){
   if(breakEl&&document.body.contains(breakEl.veil))return;
   if(!breakEl)breakEl=buildBreak();
   // 轮流：记住上次是谁（本地存储），刷新后接着轮
-  let idx=0;try{idx=(parseInt(localStorage.getItem('deyi-pets-next-break')||'0',10)||0)%BREAK_ORDER.length;}catch{}
-  const id=BREAK_ORDER[idx],person=PEOPLE[id];
-  try{localStorage.setItem('deyi-pets-next-break',String((idx+1)%BREAK_ORDER.length));}catch{}
-  breakEl.veil.dataset.who=id;
-  breakEl.veil.style.setProperty('--c',person.color);
-  // 配图来自后台的成功快照，不代表她当下真实活动或心情。
-  breakEl.veil.dataset.imageMood=pets.find(x=>x.id===id)?.mood||'normal';
-  syncBreakImage();
-  breakEl.bubble.textContent=person.restLines[Math.floor(Math.random()*person.restLines.length)];
-  const s=Math.round(BREAK_MS/1000);
-  breakEl.note.textContent=person.name+' · 休息提醒 · '+s+' 秒后她自己回去';
+  let idx=0;try{idx=Math.max(0,parseInt(localStorage.getItem('deyi-pets-next-break')||'0',10)||0)%REST_ART.length;}catch{}
+  try{localStorage.setItem('deyi-pets-next-break',String((idx+1)%REST_ART.length));}catch{}
+  breakClosing=false;breakReturnFocus=document.activeElement;breakEl.browsing=false;breakEl.bubble.textContent='';
+  breakEl.failed.clear();breakEl.resident=REST_ART[idx].id;breakEl.selected=null;
+  syncBreakArt();
   document.body.append(breakEl.veil);
+  (breakEl.next.disabled?breakEl.dismiss:breakEl.next).focus({preventScroll:true});
   requestAnimationFrame(()=>breakEl.veil.classList.add('rp-break-show'));
   clearTimeout(breakTimer);
   breakTimer=setTimeout(hideBreak,BREAK_MS);
-  startBreak3D();
 }
-function syncBreakImage(){
-  if(!breakEl)return;const id=breakEl.veil.dataset.who;if(!PEOPLE[id])return;
-  const client=window.DeyiResidentImages,state=client?.getState();
-  const image=client?.select(id,{mood:breakEl.veil.dataset.imageMood||'normal'});
-  const src=image?.src||PEOPLE[id].image;
-  breakEl.img.dataset.imageId=image?.imageId||'';
-  if(breakEl.img.src!==src)breakEl.img.src=src;
-  breakEl.img.alt=PEOPLE[id].name+(image?'的 AI 配图':'的原肖像');
-  const date=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));
-  breakEl.caption.textContent=image?'AI 配图 · '+date(image.createdAt):'原肖像';
-  if(state?.unavailable&&state.manifest)breakEl.caption.textContent+=' · 暂用 '+date(state.manifest.publishedAt)+' 的记录';
-  else if(!image&&state?.failedImageIds?.some(failedId=>state.manifest?.images.some(item=>item.resident===id&&item.imageId===failedId)))breakEl.caption.textContent+=' · 配图暂时没能打开';
+function availableArt(){
+  const state=window.DeyiResidentRestImages?.getState(),items=[];
+  for(const fallback of REST_ART){
+    const images=(state?.manifest?.images||[]).filter(image=>image.resident===fallback.id&&!state.failedImageIds.includes(image.imageId));
+    const seen=new Set();
+    images.sort((a,b)=>['normal','happy','quiet'].indexOf(a.mood)-['normal','happy','quiet'].indexOf(b.mood));
+    for(const image of images){
+      const key=fallback.id+':'+image.imageId;
+      if(seen.has(key)||breakEl.failed.has(key))continue;
+      seen.add(key);items.push({key,resident:fallback.id,title:REST_TITLES[fallback.id][image.mood],src:image.src,imageId:image.imageId,createdAt:image.createdAt});
+    }
+    if(!images.length){
+      const key='initial:'+fallback.id;
+      if(!breakEl.failed.has(key))items.push({key,resident:fallback.id,title:fallback.title,src:base+'images/residents/rest-anime/v1/'+fallback.file});
+    }
+  }
+  return items;
 }
-window.DeyiResidentImages?.subscribe(()=>{if(breakEl&&document.body.contains(breakEl.veil))syncBreakImage();});
-// 3D 舞台：入场动画结束后交给 JS——呼吸浮动＋随鼠标视角转动（参考 Cat Gatekeeper 的猫）
-let break3D=0,mouseX=0,mouseY=0;
-addEventListener('pointermove',e=>{mouseX=e.clientX;mouseY=e.clientY;},{passive:true});
-function startBreak3D(){
-  cancelAnimationFrame(break3D);
-  const card=breakEl?.card;if(!card||reduced)return;
-  let t=0,started=false;
-  const loop=()=>{
-    if(!breakEl||!document.body.contains(breakEl.veil))return;
-    t+=16;
-    const cx=(mouseX-innerWidth/2)/innerWidth, cy=(mouseY-innerHeight/2)/innerHeight;
-    const rotY=cx*10+Math.sin(t/2600)*3;
-    const rotX=-cy*8+Math.cos(t/3400)*2.5;
-    const breathe=1+Math.sin(t/2400)*0.012;
-    card.style.transform=`translate(-50%,-50%) rotateY(${rotY.toFixed(2)}deg) rotateX(${rotX.toFixed(2)}deg) scale(${breathe.toFixed(4)})`;
-    break3D=requestAnimationFrame(loop);
-  };
-  // 入场动画期间不接管 transform；结束后交还
-  const handoff=()=>{if(started)return;started=true;card.style.animation='none';loop();};
-  card.addEventListener('animationend',handoff,{once:true});
-  setTimeout(handoff,1400);
+function moveBreakPhoto(direction){
+  if(!breakEl||breakClosing||!document.body.contains(breakEl.veil))return;
+  const items=availableArt();if(items.length<2)return;
+  const position=items.findIndex(item=>item.key===breakEl.selected);
+  breakEl.selected=items[(position+direction+items.length)%items.length].key;
+  breakEl.browsing=true;clearTimeout(breakTimer);syncBreakArt();
 }
+function syncBreakArt(){
+  const album=breakEl,items=availableArt();
+  const item=items.find(entry=>entry.key===album.selected)||items.find(entry=>entry.resident===album.resident)||items[Math.min(album.position,items.length-1)];
+  album.selected=item?.key??null;
+  album.position=Math.max(0,items.indexOf(item));
+  album.img.hidden=!item;album.empty.hidden=!!item;
+  album.previous.disabled=items.length<2;album.next.disabled=items.length<2;
+  album.note.textContent=album.browsing?'慢慢看，歇好了再回来。':'休息提醒 · '+Math.round(BREAK_MS/1000)+' 秒后收起';
+  if(album.previous.disabled&&[album.previous,album.next].includes(document.activeElement))album.dismiss.focus({preventScroll:true});
+  if(!item){
+    album.img.removeAttribute('src');album.img.alt='';
+    album.counter.textContent='休息插画';album.caption.textContent='';
+    album.bubble.textContent='歇一会儿吧。';album.veil.removeAttribute('data-who');
+    return;
+  }
+  const person=PEOPLE[item.resident],src=item.src;album.resident=item.resident;
+  if(album.veil.dataset.who!==item.resident||!album.bubble.textContent)album.bubble.textContent=person.restLines[Math.floor(Math.random()*person.restLines.length)];
+  album.veil.dataset.who=item.resident;album.veil.style.setProperty('--c',person.color);
+  if(album.img.src!==src)album.img.src=src;
+  album.img.alt=person.name+' · '+item.title;
+  album.counter.textContent=person.name+' · '+(items.indexOf(item)+1)+' / '+items.length;
+  album.caption.textContent=item.title+' · 休息插画'+(item.createdAt?' · '+new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(item.createdAt)):'');
+}
+window.DeyiResidentRestImages?.subscribe(()=>{if(breakEl&&document.body.contains(breakEl.veil))syncBreakArt();});
 function hideBreak(){
-  if(!breakEl)return;
+  if(!breakEl||breakClosing)return;breakClosing=true;
   clearTimeout(breakTimer);
   breakEl.veil.classList.remove('rp-break-show');
-  setTimeout(()=>breakEl.veil.remove(),600);
+  setTimeout(()=>{breakEl.veil.remove();breakClosing=false;if(breakReturnFocus?.isConnected)breakReturnFocus.focus({preventScroll:true});},reduced?0:280);
 }
 let restDue=0;
 function armRest(){if(!restDue)restDue=performance.now()+REST_AFTER_MS;}
@@ -206,6 +250,7 @@ setTimeout(armRest,60000);
 // 切走标签页重新计时（同 Cat Gatekeeper：按连续停留算）
 document.addEventListener('visibilitychange',()=>{if(document.hidden){restDue=0;}else{armRest();}});
 function checkRest(){
+  if(compactView())return; // 小屏只保留主动打开，不自动遮住阅读。
   const now=performance.now();
   if(!restDue||now<=restDue)return;
   if(document.visibilityState!=='visible'){restDue=now+60000;return;}
@@ -217,6 +262,7 @@ if(FAST)window.__RP=()=>({due:Math.round(restDue-performance.now()),breakOpen:!!
 
 let last=performance.now();
 function tick(now){
+  if(compactView()){requestAnimationFrame(tick);return;}
   const dt=Math.min(50,now-last);last=now;
   for(const p of pets){
     p.el.style.bottom=LANES[p.id]+'px';

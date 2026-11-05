@@ -1,7 +1,7 @@
 /* 木火水小人：页面底部空白处走动，随机飘出真实原话。最少必要，不挡内容。 */
 .rp-layer{position:fixed;left:0;right:0;bottom:0;height:176px;pointer-events:none;z-index:60}
 .rp-pet{position:absolute;left:0;bottom:0;transform-origin:bottom center;pointer-events:auto;cursor:default}
-.rp-figure{width:100%;height:100%;border-radius:14px;overflow:hidden;border:2px solid var(--c);
+.rp-figure{position:relative;width:100%;height:100%;border-radius:14px;overflow:hidden;border:2px solid var(--c);
   padding:0;background:transparent;cursor:pointer;display:block;box-shadow:0 8px 16px rgba(0,0,0,.24),0 2px 4px rgba(0,0,0,.18),inset 0 0 0 1px rgba(255,255,255,.35)}
 .rp-figure:focus-visible,.rp-room-link:focus-visible{outline:3px solid var(--c);outline-offset:4px}
 .rp-quote-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -13,6 +13,11 @@
 .resident-room-links>a{min-height:36px;display:inline-flex;align-items:center;text-decoration:underline;text-underline-offset:4px}
 @media(max-width:650px){.resident-room-links{justify-content:center;gap:20px;padding:8px 16px 28px}}
 .rp-figure img{width:100%;height:100%;object-fit:cover;display:block}
+/* Each portrait frames the face within its own 3:4 illustration. */
+.rp-figure img[src*="/pets-anime/v1/"]{position:absolute;height:auto;max-width:none}
+.rp-figure img[src$="/pets-anime/v1/wood.webp"]{width:277%;left:-44%;top:-2%}
+.rp-figure img[src$="/pets-anime/v1/fire.webp"]{width:265%;left:-100%;top:-16%}
+.rp-figure img[src$="/pets-anime/v1/water.webp"]{width:268%;left:-122%;top:-25%}
 .rp-shadow{position:absolute;left:14%;right:14%;bottom:-9px;height:10px;border-radius:50%;
   background:radial-gradient(ellipse at center,rgba(0,0,0,.30) 0%,rgba(0,0,0,.12) 55%,transparent 75%);
   filter:blur(2px)}
@@ -32,46 +37,37 @@
   color:#3d6b52;font-size:14px;display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 8px rgba(0,0,0,.14);opacity:.5;transition:opacity .2s,transform .2s;padding:0}
 .rp-rest-btn:hover{opacity:1;transform:scale(1.06)}
-@media (max-width:880px){.rp-layer{display:none}}
+@media (max-width:880px){.rp-layer{height:0}.rp-pet{display:none}.rp-rest-btn{bottom:calc(20px + env(safe-area-inset-bottom,0px));right:16px;opacity:.85;width:42px;height:42px}}
 @media (prefers-reduced-motion: reduce){.rp-figure{transition:none}}
 
-/* ── 休息接管：出现、占屏、停留、可提前请走（Cat Gatekeeper 式，自写实现）── */
-.rp-break{position:fixed;inset:0;z-index:1000;display:block;perspective:1300px;--half:min(39vh,45vw);
-  background:rgba(24,20,16,.42);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  opacity:0;pointer-events:none;transition:opacity .6s ease}
+/* 休息插画：三幅完整画面，留出翻页和关闭的空间。 */
+.rp-break{position:fixed;inset:0;z-index:1000;display:grid;justify-items:center;align-content:safe center;gap:clamp(8px,1.6dvh,15px);
+  padding:clamp(10px,2.7dvh,25px) 12px;overflow:auto;overscroll-behavior:contain;
+  --art-height:min(66dvh,calc(100dvh - 185px),calc((100vw - 120px) * 4 / 3));
+  background:rgba(22,25,21,.69);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  opacity:0;pointer-events:none;transition:opacity .28s ease}
 .rp-break-show{opacity:1;pointer-events:auto}
-.rp-break-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:min(52vh,60vw);height:min(78vh,90vw);border-radius:22px;overflow:hidden;border:3px solid var(--c,#3d6b52);
-  box-shadow:0 40px 90px rgba(0,0,0,.5);transform-style:preserve-3d;will-change:transform}
-.rp-break-pedestal{position:absolute;left:50%;top:calc(50% + var(--half) + 2px);transform:translateX(-50%);
-  width:min(58vh,66vw);height:96px;border-radius:50%;
-  background:
-    radial-gradient(ellipse at center,rgba(255,255,255,.10) 0%,rgba(255,255,255,.03) 42%,transparent 66%),
-    radial-gradient(ellipse at center,rgba(0,0,0,.55) 0%,rgba(0,0,0,.30) 58%,transparent 76%);
-  box-shadow:0 8px 34px rgba(0,0,0,.42),inset 0 2px 10px rgba(255,255,255,.16);
-  pointer-events:none}
-.rp-break-glow{position:absolute;left:50%;top:calc(50% + var(--half) - 26px);transform:translateX(-50%);
-  width:min(64vh,74vw);height:120px;border-radius:50%;
-  background:radial-gradient(ellipse at center,rgba(255,255,255,.16),rgba(255,255,255,.05) 55%,transparent 75%);
-  filter:blur(12px);pointer-events:none}
-.rp-break[data-who=wood] .rp-break-card{animation:rpWoodIn .95s ease both}
-.rp-break[data-who=fire] .rp-break-card{animation:rpFireIn .7s cubic-bezier(.2,1.6,.4,1) both}
-.rp-break[data-who=water] .rp-break-card{animation:rpWaterIn .9s ease both}
-@keyframes rpWoodIn{0%{transform:translate(-50%,-46%) scale(.9);opacity:.25}55%{transform:translate(-50%,-51%) scale(1.02);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
-@keyframes rpFireIn{0%{transform:translate(-50%,-50%) scale(.55);opacity:0}70%{transform:translate(-50%,-50%) scale(1.06)}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
-@keyframes rpWaterIn{0%{transform:translate(calc(-50% - 90px),-50%) rotate(-5deg);opacity:.2}60%{transform:translate(calc(-50% + 10px),-50%) rotate(2deg)}100%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}}
-.rp-break-card img{width:100%;height:100%;object-fit:contain;display:block;background:#edece3}
-.rp-break-bubble{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(50% + var(--half) + 18px);
-  max-width:min(360px,72vw);background:#fff;border:1.5px solid var(--c,#3d6b52);border-radius:16px 16px 16px 4px;
-  padding:11px 16px;font-size:15px;line-height:1.7;color:#2b2620;text-align:center;
-  box-shadow:0 10px 28px rgba(0,0,0,.3)}
-.rp-break-bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
-  border:9px solid transparent;border-top-color:var(--c,#3d6b52)}
-.rp-break-bubble::before{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
-  border:7px solid transparent;border-top-color:#fff;margin-top:-1.5px;z-index:1}
-.rp-break-foot{position:absolute;left:50%;bottom:3.5vh;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px}
-.rp-break-note{color:rgba(255,255,255,.85);font-size:12.5px}
-.rp-break-image-caption{color:rgba(255,255,255,.78);font-size:10px;line-height:1.7;text-align:center;max-width:min(70vw,520px)}
-.rp-break-dismiss{padding:7px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.55);
-  background:rgba(255,255,255,.12);color:#fff;font-size:13px;cursor:pointer;transition:background .2s}
-.rp-break-dismiss:hover{background:rgba(255,255,255,.26)}
+.rp-break-stage{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(8px,2vw,22px);max-width:100%}
+.rp-break-card{height:max(96px,var(--art-height));aspect-ratio:3 / 4;max-width:min(74vw,570px);border-radius:12px;overflow:hidden;
+  border:1px solid rgba(245,238,216,.56);box-shadow:0 18px 55px rgba(9,15,10,.32);touch-action:pan-y;background:#e9e5d7}
+.rp-break-show .rp-break-stage{animation:rpArtEnter .36s ease both}
+@keyframes rpArtEnter{from{transform:translateY(5px);opacity:.72}to{transform:translateY(0);opacity:1}}
+.rp-break-card img{width:100%;height:100%;object-fit:contain;display:block}
+.rp-break-empty{height:100%;display:grid;place-items:center;padding:14px;text-align:center;color:#445044;font-size:13px}
+.rp-break-card [hidden]{display:none}
+.rp-break-bubble{max-width:min(420px,calc(100vw - 44px));padding:8px 15px;border-radius:7px;border:1px solid var(--c,#3d6b52);
+  background:#f6f2e8;color:#2d3c32;text-align:center;font:14px/1.65 var(--serif,serif);box-shadow:0 3px 20px rgba(0,0,0,.17)}
+.rp-break-foot{display:flex;flex-direction:column;align-items:center;gap:4px;max-width:100%;text-align:center}
+.rp-break-arrow{display:grid;place-items:center;width:44px;height:44px;padding:0 0 3px;border:1px solid rgba(245,238,216,.5);border-radius:50%;
+  background:rgba(21,28,22,.36);color:#fffaf0;font:33px/1 Georgia,serif;cursor:pointer;transition:background .2s}
+.rp-break-arrow:hover{background:rgba(245,238,216,.19)}
+.rp-break-arrow:disabled{visibility:hidden}
+.rp-break-counter{color:#fff9e9;font:14px/1.5 var(--serif,serif);letter-spacing:.6px;font-variant-numeric:tabular-nums}
+.rp-break-arrow:focus-visible,.rp-break-dismiss:focus-visible,.rp-rest-btn:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.rp-break-note{color:rgba(255,250,236,.78);font-size:11px;line-height:1.5}
+.rp-break-image-caption{color:rgba(255,250,236,.86);font-size:11px;line-height:1.5}
+.rp-break-dismiss{padding:6px 15px;min-height:34px;margin-top:4px;border-radius:999px;border:1px solid rgba(255,255,255,.55);
+  background:rgba(255,255,255,.10);color:#fff;font-size:12px;cursor:pointer;transition:background .2s}
+.rp-break-dismiss:hover{background:rgba(255,255,255,.24)}
+@media(max-width:880px){.rp-break-arrow{width:40px;height:44px}.rp-break-bubble{font-size:13px}.rp-break-dismiss{min-height:40px}}
+@media(prefers-reduced-motion:reduce){.rp-break,.rp-break-show .rp-break-stage{transition:none;animation:none}}

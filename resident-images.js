@@ -4,26 +4,29 @@ const IDS=['wood','fire','water'],MOODS=['normal','happy','quiet'];
 const hash=/^[a-f0-9]{64}$/;
 const stamp=value=>typeof value==='string'&&Number.isFinite(Date.parse(value));
 const localHost=host=>['localhost','127.0.0.1','[::1]','::1'].includes(host);
-function endpointFor(value,location){
-  const fallback=localHost(location.hostname)?new URL('/api/residents/images',location.href):new URL('https://45.134.36.23/api/residents/images');
+function endpointFor(value,location,endpointPath='/api/residents/images'){
+  if(!['/api/residents/images','/api/residents/rest-images'].includes(endpointPath))throw Error('invalid_image_endpoint');
+  const fallback=localHost(location.hostname)?new URL(endpointPath,location.href):new URL('https://45.134.36.23'+endpointPath);
   const url=new URL(value||fallback.href,location.href);
-  if(url.username||url.password||url.hash||url.search||url.pathname!=='/api/residents/images')throw Error('invalid_image_endpoint');
+  if(url.username||url.password||url.hash||url.search||url.pathname!==endpointPath)throw Error('invalid_image_endpoint');
   if(localHost(location.hostname)){
     if(!localHost(url.hostname)||!['http:','https:'].includes(url.protocol))throw Error('local_image_endpoint_required');
   }else if(url.protocol!=='https:'||url.hostname!=='45.134.36.23')throw Error('image_endpoint_refused');
   return url.href;
 }
 function normalize(value,endpoint){
+  const rest=new URL(endpoint).pathname==='/api/residents/rest-images';
+  if(rest?value?.surface!=='rest-anime':value?.surface!==undefined)throw Error('invalid_image_surface');
   if(!value||value.format!=='deyi-resident-images-v1'||!hash.test(value.revision||'')||!stamp(value.publishedAt)||!Array.isArray(value.images)||value.images.length>9)throw Error('invalid_image_manifest');
   const origin=new URL(endpoint).origin,pairs=new Set();
   const images=value.images.map(item=>{
     if(!item||!IDS.includes(item.resident)||!MOODS.includes(item.mood)||!Number.isInteger(item.poseIndex)||item.poseIndex<0||!hash.test(item.imageId||'')||!stamp(item.createdAt)||item.source!=='generated'||!Number.isInteger(item.width)||item.width<1||item.width>8192||!Number.isInteger(item.height)||item.height<1||item.height>8192)throw Error('invalid_image_record');
-    const expected='/api/residents/image-assets/'+item.imageId+'.png';
+    const expected=(rest?'/api/residents/rest-image-assets/':'/api/residents/image-assets/')+item.imageId+'.png';
     if(item.url!==expected)throw Error('invalid_image_asset_url');
     const pair=item.resident+':'+item.mood;if(pairs.has(pair))throw Error('duplicate_image_slot');pairs.add(pair);
     return{resident:item.resident,mood:item.mood,poseIndex:item.poseIndex,imageId:item.imageId,createdAt:item.createdAt,url:expected,src:origin+expected,width:item.width,height:item.height,source:'generated'};
   });
-  return{format:'deyi-resident-images-v1',revision:value.revision,publishedAt:value.publishedAt,images};
+  return{format:'deyi-resident-images-v1',...(rest?{surface:'rest-anime'}:{}),revision:value.revision,publishedAt:value.publishedAt,images};
 }
 function selectImage(state,resident,{imageId=null,mood=null}={}){
   if(imageId==='original')return null;
@@ -31,8 +34,8 @@ function selectImage(state,resident,{imageId=null,mood=null}={}){
   const selected=imageId?images.find(image=>image.imageId===imageId):mood?(images.find(image=>image.mood===mood)||images.find(image=>image.mood==='normal')||images[0]):images[0];
   return selected&&!(state.failedImageIds||[]).includes(selected.imageId)?selected:null;
 }
-function makeClient({location,storage,fetcher,schedule,cancel,endpoint,interval=180000}){
-  const url=endpointFor(endpoint,location),cacheKey='deyi-resident-images-v1:'+url,listeners=new Set();
+function makeClient({location,storage,fetcher,schedule,cancel,endpoint,endpointPath='/api/residents/images',interval=180000}){
+  const url=endpointFor(endpoint,location,endpointPath),cacheKey='deyi-resident-images-v1:'+url,listeners=new Set();
   let started=false,timer=null,inFlight=null;
   let state={manifest:null,loading:true,unavailable:false,receivedAt:null,failedImageIds:[]};
   try{const saved=JSON.parse(storage.getItem(cacheKey)||'null');if(saved?.manifest)state={...state,manifest:normalize(saved.manifest,url),receivedAt:saved.receivedAt||null};}catch{}
@@ -65,5 +68,8 @@ try{
   const script=root.document.currentScript;
   root.DeyiResidentImages=makeClient({location:root.location,storage,fetcher:root.fetch.bind(root),schedule:root.setTimeout.bind(root),cancel:root.clearTimeout.bind(root),endpoint:script?.dataset.endpoint||root.document.querySelector('meta[name="resident-image-feed"]')?.content});
   root.DeyiResidentImages.start();root.dispatchEvent(new Event('deyi-resident-images-ready'));
+  const restEndpoint=script?.dataset.restEndpoint||root.document.querySelector('meta[name="resident-rest-image-feed"]')?.content;
+  root.DeyiResidentRestImages=makeClient({location:root.location,storage,fetcher:root.fetch.bind(root),schedule:root.setTimeout.bind(root),cancel:root.clearTimeout.bind(root),endpoint:restEndpoint,endpointPath:'/api/residents/rest-images'});
+  root.DeyiResidentRestImages.start();
 }catch{root.dispatchEvent(new Event('deyi-resident-images-error'));}
 })(typeof window==='undefined'?null:window);

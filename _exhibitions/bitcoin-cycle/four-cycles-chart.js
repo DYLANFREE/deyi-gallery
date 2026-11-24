@@ -1,20 +1,55 @@
 (() => {
   'use strict';
-  const data = window.BTC_HISTORY, model = window.BitcoinCycleModel, d3 = window.d3;
-  const host = document.querySelector('#chart-scroll');
+  let data = window.BTC_HISTORY;
+  const model = window.BitcoinCycleModel, d3 = window.d3;
+  const host = document.querySelector('#cycle-scroll');
   if (!data || !model || !d3) {
     host.innerHTML = '<p class="error">图表资源未加载，请刷新页面重试。</p>';
     return;
   }
-  const cycles = model.buildCycles(data), active = new Set(cycles.map(cycle => cycle.year));
+  let cycles = model.buildCycles(data);
+  const active = new Set(cycles.map(cycle => cycle.year));
   const svg = d3.select('#cycles-svg'), bounds = {l:61,r:25,t:49,b:67};
-  const end = Math.max(...cycles.map(cycle => cycle.endDay - cycle.halving.day));
-  const latest = cycles.at(-1).points.at(-1).offset;
-  const values = cycles.flatMap(cycle => cycle.points.map(point => point.multiple));
-  const domain = [Math.min(.5,Math.min(...values)*.9),Math.max(100,Math.max(...values)*1.12)];
+  let end, latest, domain;
+  function updateScales() {
+    end = Math.max(...cycles.map(cycle => cycle.endDay - cycle.halving.day));
+    latest = cycles.at(-1).points.at(-1).offset;
+    const values = cycles.flatMap(cycle => cycle.points.map(point => point.multiple));
+    domain = [Math.min(.5, Math.min(...values)*.9), Math.max(100, Math.max(...values)*1.12)];
+  }
+  updateScales();
   let width, height, x, y, cursor, selected = latest;
   const setText = (selector,value) => { document.querySelector(selector).textContent = value; };
   const multiple = value => value.toFixed(2) + ' ×';
+  const reference = document.querySelector('#ref-cycle');
+  const inspect = document.querySelector('#inspect-offset');
+  const calendar = BitcoinSeasons;
+  inspect.max = end;
+  for (const cycle of cycles) reference.add(new Option(cycle.year + ' 轮', cycle.year));
+  reference.value = cycles.at(-1).year;
+  reference.addEventListener('change', () => render());
+  inspect.addEventListener('input', () => {
+    const entered = inspect.valueAsNumber;
+    if (Number.isInteger(entered) && entered >= 0 && entered <= end) read(entered);
+  });
+  inspect.addEventListener('change', () => {
+    const entered = inspect.valueAsNumber;
+    if (Number.isFinite(entered)) read(entered);
+    else inspect.value = selected;
+  });
+  const referenceCycle = () => cycles.find(cycle => cycle.year === reference.value);
+
+  function bandOffsets() {
+    if (!calendar.isCalendar()) {
+      return model.seasons.map(season => ({...season, end: Math.min(season.end ?? end, end)}));
+    }
+    const cycle = referenceCycle();
+    const first = cycle.halving.day;
+    const until = Math.min(cycle.next?.day ?? first + end, first + end);
+    return calendar.calendarBands(first, until).map(band => ({
+      ...band, start: Math.max(0, band.start - first), end: Math.min(band.end, until) - first
+    }));
+  }
 
   // Build the legend and readouts once; resizing never changes the user's selection.
   for (const cycle of cycles) {
@@ -29,31 +64,69 @@
       else active.add(cycle.year);
       syncLegend(); render();
     });
-    document.querySelector('#cycle-legend').insertBefore(button,document.querySelector('.legend .hint'));
+    document.querySelector('#cycle-legend').insertBefore(button,document.querySelector('#cycle-legend .hint'));
     const readout = document.createElement('div');
     readout.className = 'cycle-readout';
     readout.dataset.readCycle = cycle.year;
     readout.style.setProperty('--cycle-color',cycle.color);
-    readout.innerHTML = '<span class="label">' + cycle.year + (cycle.complete ? ' 轮' : ' 轮 · 进行中') + '</span><strong></strong><time></time>';
+    readout.innerHTML = '<span class="label">' + cycle.year + (cycle.complete ? ' 轮' : ' 轮 · 进行中') + '</span><strong></strong><time></time><span class="read-season"></span>';
     document.querySelector('#cycle-readouts').append(readout);
-    const row = document.createElement('tr');
-    row.innerHTML = '<th scope="row">' + cycle.year + '</th>' + cycle.seasons.map(season =>
-      '<td><time datetime="' + model.iso(season.start) + '">' + model.iso(season.start) + '</time>' +
-      (season.end === null ? '<span>至下次实际减半前</span>' :
-        '<time datetime="' + model.iso(season.end-1) + '">' + model.iso(season.end-1) + '</time>') + '</td>').join('');
-    document.querySelector('#season-dates').append(row);
   }
   function syncLegend() {
-    document.querySelectorAll('[data-cycle]').forEach(button => {
+    for (const button of document.querySelectorAll('[data-cycle]')) {
       const enabled = active.has(button.dataset.cycle);
       button.setAttribute('aria-pressed',String(enabled));
       button.disabled = enabled && active.size === 1;
-    });
+    }
+    for (const option of reference.options) option.disabled = !active.has(option.value);
+    if (!active.has(reference.value)) reference.value = cycles.filter(cycle => active.has(cycle.year)).at(-1).year;
   }
 
-  function read(offset,draw=true) {
+  function updateDateTable() {
+    const byCalendar = calendar.isCalendar();
+    const names = byCalendar ? ['减半年 · 春','次年 · 夏','第三年 · 秋','第四年 · 冬','再入春'] : ['夏','秋','冬','春'];
+    const headRow = document.createElement('tr');
+    for (const name of ['轮次', ...names]) {
+      const th = document.createElement('th');
+      th.scope = 'col'; th.textContent = name; headRow.append(th);
+    }
+    document.querySelector('#season-head').replaceChildren(headRow);
+    const rows = cycles.map(cycle => {
+      const row = document.createElement('tr');
+      const th = document.createElement('th'); th.scope = 'row'; th.textContent = cycle.year; row.append(th);
+      // Calendar cells describe the observed portion of the round in each calendar year.
+      const intervals = byCalendar
+        ? calendar.calendarBands(cycle.halving.day, cycle.endDay).map(band => ({
+          start: Math.max(band.start, cycle.halving.day), end: Math.min(band.end, cycle.endDay)
+        }))
+        : cycle.seasons;
+      for (let i = 0; i < names.length; i++) {
+        const cell = row.insertCell();
+        const interval = intervals[i];
+        if (!interval) { cell.textContent = '—'; continue; }
+        const start = document.createElement('time');
+        start.dateTime = model.iso(interval.start); start.textContent = start.dateTime; cell.append(start);
+        if (interval.end === null) {
+          cell.append('至下次实际减半前');
+        } else {
+          const stop = document.createElement('time');
+          stop.dateTime = model.iso(interval.end - 1); stop.textContent = '至 ' + stop.dateTime; cell.append(stop);
+        }
+      }
+      return row;
+    });
+    document.querySelector('#season-dates').replaceChildren(...rows);
+    setText('#table-note', byCalendar
+      ? '按各轮真实日期与自然年取交集，包含首尾两日。2024 轮表格列到已有价格的最后一天。'
+      : '每轮从减半日进入夏季，夏、秋、冬各 365 天，春季持续到下次实际减半。日期含首尾两日。');
+  }
+
+  function read(offset,draw=true,preserveEdit=false) {
     selected = Math.max(0,Math.min(end,Math.round(offset)));
-    setText('#read-offset','减半后第 ' + selected + ' 天 · ' + model.seasonAt(selected) + '季');
+    if ((!preserveEdit || document.activeElement !== inspect) && inspect.valueAsNumber !== selected) inspect.value = String(selected);
+    setText('#read-offset', calendar.isCalendar()
+      ? '底色按 ' + reference.value + ' 轮，以下标出各轮当天的季节。'
+      : '各轮同属' + model.seasonAt(selected) + '季');
     for (const cycle of cycles) {
       const element = document.querySelector('[data-read-cycle="' + cycle.year + '"]');
       element.setAttribute('aria-hidden',String(!active.has(cycle.year)));
@@ -62,6 +135,10 @@
       value.textContent = point ? multiple(point.multiple) : cycle.complete ? '该轮已结束' : '尚无数据';
       time.textContent = point ? model.iso(point.day) : '截至 ' + model.iso(cycle.points.at(-1).day);
       time.dateTime = model.iso(point?.day ?? cycle.points.at(-1).day);
+      const season = point ? (calendar.isCalendar() ? calendar.seasonForYear(calendar.toYear(point.day)) : model.seasonAt(selected)) : '';
+      const seasonLabel = element.querySelector('.read-season');
+      seasonLabel.textContent = season ? season + '季' : '';
+      seasonLabel.style.color = season ? calendar.palette[season].color : '';
     }
     if (!draw || !cursor) return;
     cursor.attr('display',null);
@@ -75,6 +152,8 @@
   }
 
   function render(exportWidth) {
+    if (!host.clientWidth && !exportWidth) return;
+    document.querySelector('#ref-control').hidden = !calendar.isCalendar();
     width = exportWidth || Math.max(280,Math.round(host.clientWidth));
     const compact = width < 650;
     height = compact ? 370 : 506;
@@ -86,19 +165,25 @@
     svg.attr('width',width).attr('height',height).attr('viewBox','0 0 '+width+' '+height)
       .attr('font-family','PingFang SC, Microsoft YaHei, sans-serif').attr('font-size',11);
     svg.selectAll('*').remove();
-    svg.append('title').text('四轮比特币减半周期，统一从减半日进入夏季');
+    svg.append('title').text('四轮比特币周期 · ' + (calendar.isCalendar() ? '自然年四季，底色按' + reference.value + '轮' : '减半日四季'));
     svg.append('desc').text('日收盘价除以各轮减半日价格。历史轮止于下次实际减半前一日，本轮价格截至 '+data.meta.priceThrough+'。方向键逐日查看。');
     svg.append('rect').attr('width',width).attr('height',height).attr('fill','#fff');
     const plot = svg.append('g');
-    for (const season of model.seasons) {
-      const stop = Math.min(season.end ?? end,end);
+    for (const season of bandOffsets()) {
+      const stop = season.end;
       plot.append('rect').attr('data-season',season.name).attr('data-start',season.start).attr('data-end',stop)
         .attr('x',x(season.start)).attr('y',bounds.t).attr('width',x(stop)-x(season.start))
         .attr('height',bottom-bounds.t).attr('fill',season.fill).attr('opacity',.65);
       svg.append('rect').attr('x',x(season.start)).attr('y',14).attr('width',x(stop)-x(season.start))
         .attr('height',24).attr('fill',season.fill);
-      svg.append('text').attr('x',(x(stop)+x(season.start))/2).attr('y',30).attr('text-anchor','middle')
-        .attr('font-size',12).attr('fill',season.color).text(season.name+(season.name==='春'&&!compact?' · 至下次减半':''));
+      const bandWidth = x(stop) - x(season.start);
+      if (bandWidth >= 14) {
+        const label = calendar.isCalendar()
+          ? (bandWidth > 65 ? season.year + ' ' : '') + season.name
+          : season.name + (season.name === '春' && !compact ? ' · 至下次减半' : '');
+        svg.append('text').attr('x',(x(stop)+x(season.start))/2).attr('y',30).attr('text-anchor','middle')
+          .attr('font-size',compact?10:12).attr('fill',season.color).text(label);
+      }
     }
     const ticks = [.5,1,2,5,10,20,50,100].filter(value=>value>=domain[0]&&value<=domain[1]);
     plot.selectAll('.grid').data(ticks).join('line').attr('class','grid')
@@ -124,16 +209,19 @@
         .attr('fill',cycle.color).attr('stroke','#fff');
     }
     svg.append('text').attr('x',bounds.l).attr('y',height-25).attr('font-size',10).attr('fill','#6c7b72')
-      .text(compact?'减半日价格 = 1 倍 · 对数纵轴':'减半日价格 = 1 倍 · 对数纵轴 · 夏、秋、冬各 365 天，春至下次实际减半');
+      .text(calendar.isCalendar()
+        ? '自然年四季 · 底色按 ' + reference.value + ' 轮 · 减半日 = 1 倍'
+        : '减半日四季 · 夏、秋、冬各 365 天 · 减半日 = 1 倍');
     svg.append('text').attr('x',bounds.l).attr('y',height-8).attr('font-size',10).attr('fill','#849086')
-      .text(compact?'日线至 '+data.meta.priceThrough+' · Coin Metrics':'Coin Metrics · UTC 日收盘 · 截至 '+data.meta.priceThrough+' · 不外推未来价格');
+      .text('日线至 ' + data.meta.priceThrough + (calendar.isCalendar() && reference.value === cycles.at(-1).year
+        ? ' · 本轮曲线末尾之后的底色只标日历' : ' · Coin Metrics · UTC'));
     cursor = plot.append('g').attr('class','crosshair').attr('pointer-events','none');
     cursor.append('line').attr('y1',bounds.t).attr('y2',bottom).attr('stroke','#657c6e').attr('stroke-width',.8).attr('stroke-dasharray','3 3');
     svg.append('rect').attr('class','hit-target').attr('x',bounds.l).attr('y',bounds.t).attr('width',right-bounds.l)
       .attr('height',bottom-bounds.t).attr('fill','transparent').style('cursor','crosshair')
       .on('pointermove pointerdown',event=>read(x.invert(d3.pointer(event,svg.node())[0])))
       .on('pointerleave',()=>cursor.attr('display','none'));
-    read(selected);
+    read(selected,true,true);
   }
   svg.on('keydown',event=>{
     let offset;
@@ -170,18 +258,23 @@
     render();
     return serialized;
   }
-  function download(blob,extension) {
+  function exportName(extension) {
+    return 'bitcoin-four-cycles-' + calendar.route().rule
+      + (calendar.isCalendar() ? '-' + reference.value : '') + '-' + data.meta.priceThrough + '.' + extension;
+  }
+  function download(blob,filename) {
     const url=URL.createObjectURL(blob),link=document.createElement('a');
-    link.href=url;link.download='bitcoin-four-cycles-'+data.meta.priceThrough+'.'+extension;link.click();
+    link.href=url;link.download=filename;link.click();
     setTimeout(()=>URL.revokeObjectURL(url),15000);
   }
-  document.querySelector('#export-svg').addEventListener('click',()=>{
-    download(new Blob([svgText()],{type:'image/svg+xml;charset=utf-8'}),'svg');
-    setText('#export-status','已导出当前可见曲线的 SVG。');
+  document.querySelector('#cycle-export-svg').addEventListener('click',()=>{
+    download(new Blob([svgText()],{type:'image/svg+xml;charset=utf-8'}),exportName('svg'));
+    setText('#cycle-export-status','已导出当前可见曲线的 SVG。');
   });
-  document.querySelector('#export-png').addEventListener('click',async()=>{
-    const button=document.querySelector('#export-png');button.disabled=true;
-    setText('#export-status','正在生成高清图…');
+  document.querySelector('#cycle-export-png').addEventListener('click',async()=>{
+    const button=document.querySelector('#cycle-export-png');button.disabled=true;
+    const filename = exportName('png');
+    setText('#cycle-export-status','正在生成高清图…');
     const url=URL.createObjectURL(new Blob([svgText()],{type:'image/svg+xml;charset=utf-8'}));
     try {
       const image=new Image();
@@ -190,16 +283,29 @@
       const context=canvas.getContext('2d');context.drawImage(image,0,0,canvas.width,canvas.height);
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
       if(!blob)throw Error('Canvas export failed');
-      download(blob,'png');setText('#export-status','已导出 '+canvas.width+' × '+canvas.height+' 高清图。');
+      download(blob,filename);setText('#cycle-export-status','已导出 '+canvas.width+' × '+canvas.height+' 高清图。');
     } catch {
-      setText('#export-status','PNG 导出失败，仍可下载 SVG。');
+      setText('#cycle-export-status','PNG 导出失败，仍可下载 SVG。');
     } finally {
       button.disabled=false;URL.revokeObjectURL(url);
     }
   });
+  function refresh() {
+    if (!host.clientWidth) return;
+    syncLegend(); updateDateTable(); render();
+  }
   let timer;
-  new ResizeObserver(()=>{clearTimeout(timer);timer=setTimeout(render,100);}).observe(host);
-  const sendHeight=()=>parent.postMessage({type:'btc-cycles-height',height:Math.ceil(document.body.getBoundingClientRect().height)},location.protocol==='file:'?'*':location.origin);
-  new ResizeObserver(sendHeight).observe(document.body);
-  syncLegend();render();sendHeight();
+  new ResizeObserver(() => {
+    clearTimeout(timer); timer = setTimeout(() => render(), 75);
+  }).observe(host);
+  document.addEventListener('bitcoin-data-change', () => {
+    const atLatest = selected === latest;
+    data = window.BTC_HISTORY;
+    cycles = model.buildCycles(data);
+    updateScales();
+    inspect.max = end;
+    if (atLatest) selected = latest;
+    refresh();
+  });
+  document.addEventListener('season-view-change', refresh);
 })();

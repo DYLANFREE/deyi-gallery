@@ -1,57 +1,72 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta name="robots" content="noindex, follow"><meta name="deyi-site-prefix" content="/deyi-gallery"><base href="/deyi-gallery/_exhibitions/bitcoin-cycle/index.html"><link rel="canonical" href="https://xn--92tne1h89u.love/themes/tools/bitcoin-cycle"><meta property="og:type" content="article"><meta property="og:title" content="比特币周期观察"><meta property="og:description" content="2011 年至今的历史全景，四轮减半从同一起点观察。四季统一从减半日进入夏季，日线截至 2026-10-06。"><meta property="og:url" content="https://dylanfree.github.io/deyi-gallery/themes/tools/bitcoin-cycle"><meta property="og:image" content="https://dylanfree.github.io/deyi-gallery/share/tools.png"><meta name="twitter:card" content="summary_large_image">
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>比特币周期观察</title>
-  <meta name="description" content="从2011年至今看历史，把四轮减半拉回同一起点。四季统一从减半日进入夏季。">
-  <style>
-    :root{color-scheme:light;--ink:#253a35;--muted:#64746b;--line:#d8dfd6;--paper:#f7f7f0;--accent:#a96830;font-family:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;font-size:14px;line-height:1.7;color:var(--ink);background:var(--paper)}
-    *{box-sizing:border-box}body{margin:0}button,a{font:inherit}button{cursor:pointer}a{color:inherit}button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}[hidden]{display:none!important}
-    .shell{width:min(1220px,calc(100% - 64px));margin:auto}.heading{display:flex;justify-content:space-between;align-items:end;gap:30px;padding:40px 0 27px}.eyebrow{font:10px/1.5 ui-monospace,monospace;letter-spacing:.18em;color:var(--accent)}h1{font-size:clamp(28px,3.5vw,42px);font-weight:550;line-height:1.3;letter-spacing:-.03em;margin:12px 0 11px}.lead{color:var(--muted);margin:0}.snapshot{flex-shrink:0;text-align:right;font-size:11px;color:var(--muted)}
-    .tabs{display:flex;gap:6px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 0;margin-bottom:22px}.tabs button{border:0;background:transparent;color:var(--muted);padding:11px 22px;border-radius:4px}.tabs button[aria-selected=true]{background:#254638;color:#fff}.tabs button:hover:not([aria-selected=true]){background:#e8eddf}
-    .document-wrap{border:1px solid var(--line);background:white;border-radius:6px;overflow:hidden}.document{display:block;width:100%;height:980px;border:0;background:#fff}
-    .basis{margin:24px 0 40px;border-top:1px solid var(--line);font-size:12px}.basis summary{padding:15px 0;cursor:pointer}.basis p{max-width:950px;color:var(--muted);line-height:1.9;margin:0 0 13px}
-    @media(max-width:650px){.shell{width:calc(100% - 28px)}.heading{padding:27px 0 21px;display:block}.snapshot{text-align:left;margin-top:13px;font-size:10px}.lead{font-size:13px}.tabs button{flex:1;padding:10px 9px;font-size:12px}.basis{font-size:11px}}
-  </style>
+<head><meta name="robots" content="noindex, follow"><meta name="deyi-site-prefix" content="/deyi-gallery"><base href="/deyi-gallery/_exhibitions/bitcoin-cycle/index.html"><link rel="canonical" href="https://xn--92tne1h89u.love/themes/tools/bitcoin-cycle"><meta property="og:type" content="article"><meta property="og:title" content="比特币周期观察"><meta property="og:description" content="从 2011 年连续看比特币价格。切换减半日或自然年四季，比较四轮减半后的走势，日线随 UTC 收盘更新。"><meta property="og:url" content="https://dylanfree.github.io/deyi-gallery/themes/tools/bitcoin-cycle"><meta property="og:image" content="https://dylanfree.github.io/deyi-gallery/share/tools.png"><meta name="twitter:card" content="summary_large_image">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light"><title>比特币周期观察 · 两种四季</title>
+<link rel="stylesheet" href="charts.css">
 </head>
 <body>
-  <div class="shell">
-    <header class="heading"><div><span class="eyebrow">BITCOIN / CYCLE OBSERVATORY</span><h1>比特币周期观察</h1><p class="lead">先看完整历史，再把四轮减半放回同一个起点。</p></div><span class="snapshot">日线截至 2026-10-06 · 按需更新</span></header>
-    <nav class="tabs" role="tablist" aria-label="观察方式">
-      <button id="tab-history" type="button" role="tab" aria-selected="true" aria-controls="panel-history" tabindex="0" data-panel="history">历史全景 · 2011 至今</button>
-      <button id="tab-overview" type="button" role="tab" aria-selected="false" aria-controls="panel-overview" tabindex="-1" data-panel="overview">四轮周期</button>
+<main class="page">
+  <header class="page-head"><h1>比特币周期观察</h1><div class="period"><span class="dot"></span>日线截至 <time id="snapshot-through" datetime="2026-11-23">2026.11.23</time></div></header>
+  <p id="daily-status" class="daily-status" role="status" hidden></p>
+  <div class="view-controls">
+    <nav class="chart-tabs" role="tablist" aria-label="选择图表">
+      <button type="button" role="tab" id="tab-history" data-view="history" aria-controls="history-panel" aria-selected="true">历史全景</button>
+      <button type="button" role="tab" id="tab-cycles" data-view="cycles" aria-controls="cycles-panel" aria-selected="false" tabindex="-1">四轮周期</button>
     </nav>
-    <section id="panel-history" role="tabpanel" aria-labelledby="tab-history">
-      <div class="document-wrap"><iframe class="document" id="history-frame" title="历史全景：2011年至今" data-src="full-history.html"></iframe></div>
-    </section>
-    <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" hidden>
-      <div class="document-wrap"><iframe class="document" id="cycles-frame" title="减半后，价格真的走同一条路吗？" data-src="four-cycles.html"></iframe></div>
-    </section>
-    <details class="basis"><summary>数据与更新</summary><p>两张图共用 Coin Metrics 的 BTC/USD 日线，按 UTC 收盘，价格截至 2026-10-06。历史全景中的 S2F 复算截至 2026-10-05，缺失日不补值。打开页面不会自动获取新行情。</p><p>四季只按减半后的时间划分，不按涨跌倒推，也不是牛熊预测。历史全景保留计算口径与来源；四轮周期下方可查看每轮的四季日期。</p></details>
+    <fieldset class="rule-switch"><legend>四季口径</legend><div>
+      <label><input type="radio" name="rule" value="halving" checked><span>按减半日</span></label>
+      <label><input type="radio" name="rule" value="calendar"><span>按自然年</span></label>
+    </div></fieldset>
   </div>
-  <script>
-    const tabs=[...document.querySelectorAll('[data-panel]')];
-    // Old bookmarks now open the single, halving-aligned cycle view.
-    function resolvePanel(id){return ['overview','model','seasons'].includes(id)?'overview':'history';}
-    function selectPanel(requested,focus=false){
-      const id=resolvePanel(requested);
-      tabs.forEach(tab=>{const active=tab.dataset.panel===id;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;document.querySelector('#panel-'+tab.dataset.panel).hidden=!active;if(active&&focus)tab.focus();});
-      const frame=document.querySelector('#panel-'+id+' iframe');
-      if(!frame.getAttribute('src'))frame.src=frame.dataset.src;
-      if(location.hash!=='#'+id)history.replaceState(null,'','#'+id);
-    }
-    tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>selectPanel(tab.dataset.panel));tab.addEventListener('keydown',event=>{let next;if(event.key==='ArrowRight')next=(index+1)%tabs.length;else if(event.key==='ArrowLeft')next=(index+tabs.length-1)%tabs.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=tabs.length-1;else return;event.preventDefault();selectPanel(tabs[next].dataset.panel,true);});});
-    const frames=[...document.querySelectorAll('.document')];
-    window.addEventListener('message',event=>{
-      const frame=frames.find(candidate=>candidate.contentWindow===event.source);
-      if(!frame||!['btc-history-height','btc-cycles-height'].includes(event.data?.type))return;
-      if(location.protocol!=='file:'&&event.origin!==location.origin)return;
-      const height=Number(event.data.height);
-      if(Number.isFinite(height)&&height>=300&&height<5000)frame.style.height=Math.ceil(height)+'px';
-    });
-    window.addEventListener('hashchange',()=>selectPanel(location.hash.slice(1)));
-    selectPanel(location.hash.slice(1));
-  </script>
-<a href="/deyi-gallery/themes/tools" target="_top" data-deyi-return style="position:fixed;right:12px;bottom:12px;z-index:2147483000;padding:7px 12px;border:1px solid #789184;border-radius:20px;background:#f4f2e9;color:#214834;font:12px/1.5 system-ui;text-decoration:none;box-shadow:0 2px 9px #0001">← 得易忘形</a><script data-deyi-navigation>(()=>{try{const key='deyi-gallery-return',state=JSON.parse(sessionStorage.getItem(key)||'null'),prefix=document.querySelector?.('meta[name="deyi-site-prefix"]')?.content||'',local=state&&typeof state.url==='string'?(prefix?(state.url.startsWith(prefix+'/')?state.url.slice(prefix.length):'invalid'):state.url):'invalid';if(state&&typeof state.url==='string'&&/^\/(?:archive\/?(?:\?|$)|themes\/[a-z-]+\/?$|$)/.test(local)&&Number.isFinite(state.at)&&Date.now()-state.at<=3600000&&Number.isFinite(state.scroll)){document.querySelectorAll('[data-deyi-return]').forEach(link=>{link.href=state.url;link.addEventListener('click',()=>{try{sessionStorage.setItem(key,JSON.stringify({...state,restore:true}))}catch{}})})}}catch{}})();</script></body>
-</html>
+  <section id="history-panel" role="tabpanel" aria-labelledby="tab-history">
+    <div class="chart-head"><div><h2>从 2011 年看比特币</h2><p id="history-rule"></p></div>
+      <div class="exports"><button type="button" id="history-export-png">下载 PNG</button><button type="button" id="history-export-svg">SVG</button></div>
+    </div>
+    <div class="chart-card">
+      <div class="toolbar"><div class="ranges" role="group" aria-label="时间范围"><button type="button" data-range="all">全部历史</button><button type="button" data-range="10">近 10 年</button><button type="button" data-range="5">近 5 年</button><button type="button" data-range="current">本轮减半后</button></div>
+        <div class="switches"><label><input id="show-model" type="checkbox" checked>S2F 复算</label><label><input id="show-bands" type="checkbox" checked>四季底色</label><label><input id="show-halvings" type="checkbox" checked>减半标记</label></div></div>
+      <div class="readout history-readout" aria-live="off">
+        <label class="day-inspect">查看日期<input id="inspect-day" type="date"></label>
+        <div><span>BTC 收盘</span><strong id="read-price"></strong></div>
+        <div><span>S2F 复算</span><strong id="read-model"></strong></div>
+        <div class="season-cell"><span>当天季节</span><strong id="read-season"></strong></div>
+        <div class="status-cell"><span id="read-status"></span></div>
+      </div>
+      <div class="chart-scroll" id="history-scroll"><svg id="history-svg" role="img" aria-label="比特币历史价格与四季。可用左右方向键逐日查看。" tabindex="0"></svg></div>
+      <div class="navigator"><div class="navigator-title"><span>拖动选取范围</span><span id="range-label"></span></div><svg id="navigator-svg" aria-label="时间范围选择器"></svg></div>
+      <div class="date-controls"><label>从 <input id="date-from" type="date" aria-label="开始日期"></label><label>到 <input id="date-to" type="date" aria-label="结束日期"></label><button id="reset-range" type="button">恢复全图</button><span id="date-error" role="status"></span></div>
+    </div>
+    <span id="history-export-status" class="export-status" role="status"></span>
+    <details class="methods"><summary>数据与四季划分</summary>
+      <p id="data-period"></p><p id="history-method"></p>
+      <p>减半按 UTC 日线标记在 2012-11-28、2016-07-09、2020-05-11 和 2024-04-20。</p>
+      <p id="cutoff-note"></p><p>打开图表时核对 Coin Metrics 的 UTC 日线。跨日后会再核对，数据源延迟时保留最近一次有效读数。</p><p>S2F 使用 PlanB 2019 年系数，按过去 365 天的链上新增供给复算。虚线较淡的一段是模型公开前的回算。</p>
+      <p><a href="https://github.com/coinmetrics/docs-website/blob/master/asset-metrics/market/priceusd.md" target="_blank" rel="noopener">Coin Metrics 日线口径 ↗</a>　<a href="https://medium.com/@100trillionUSD/modeling-bitcoins-value-with-scarcity-91fa0fc03e25" target="_blank" rel="noopener">PlanB 2019 原文 ↗</a></p>
+    </details>
+  </section>
+  <section id="cycles-panel" role="tabpanel" aria-labelledby="tab-cycles" hidden>
+    <div class="chart-head"><div><h2>减半后，价格真的走同一条路吗？</h2><p>每轮从实际减半日的收盘价 <b>1 倍</b> 起步。</p></div><div class="exports"><button id="cycle-export-png" type="button">下载 PNG</button><button id="cycle-export-svg" type="button">SVG</button></div></div>
+    <div class="chart-card">
+      <div class="toolbar"><div id="cycle-legend" class="cycle-legend" role="group" aria-label="显示或隐藏周期曲线"><span class="hint">点击年份显隐曲线</span></div>
+        <label class="ref-select" id="ref-control">底色参照<select id="ref-cycle" aria-label="自然年背景参照轮次"></select></label>
+      </div>
+      <div class="readout cycle-inspect"><label>减半后第 <input id="inspect-offset" type="number" min="0" step="1" aria-label="减半后的天数"> 天</label><span id="read-offset"></span></div>
+      <div class="readout-grid" id="cycle-readouts"></div>
+      <div class="chart-scroll" id="cycle-scroll"><svg id="cycles-svg" role="img" aria-label="四轮比特币价格，自减半日算起。使用左右方向键逐日查看。" tabindex="0"></svg></div>
+    </div>
+    <span id="cycle-export-status" class="export-status" role="status"></span>
+    <details class="methods"><summary>查看每一轮的换季日期</summary><p id="table-note"></p><div class="table-scroll" tabindex="0" aria-label="逐轮换季日期"><table><thead id="season-head"></thead><tbody id="season-dates"></tbody></table></div></details>
+  </section>
+  <footer>Coin Metrics · BTC/USD · UTC 日收盘</footer>
+</main>
+<script src="d3-7.9.0.min.js"></script>
+<script src="full-history-data.js"></script>
+<script src="cycle-model.js"></script>
+<script src="season-rules.js"></script>
+<script src="daily-close.js"></script>
+<script src="daily-reader.js"></script>
+<script src="full-history-chart.js"></script>
+<script src="four-cycles-chart.js"></script>
+<script src="chart-navigation.js"></script>
+<a href="/deyi-gallery/themes/tools" target="_top" data-deyi-return style="position:fixed;right:12px;bottom:12px;z-index:2147483000;padding:7px 12px;border:1px solid #789184;border-radius:20px;background:#f4f2e9;color:#214834;font:12px/1.5 system-ui;text-decoration:none;box-shadow:0 2px 9px #0001">← 得易忘形</a><script data-deyi-navigation>(()=>{try{const key='deyi-gallery-return',state=JSON.parse(sessionStorage.getItem(key)||'null'),prefix=document.querySelector?.('meta[name="deyi-site-prefix"]')?.content||'',local=state&&typeof state.url==='string'?(prefix?(state.url.startsWith(prefix+'/')?state.url.slice(prefix.length):'invalid'):state.url):'invalid';if(state&&typeof state.url==='string'&&/^\/(?:archive\/?(?:\?|$)|themes\/[a-z-]+\/?$|$)/.test(local)&&Number.isFinite(state.at)&&Date.now()-state.at<=3600000&&Number.isFinite(state.scroll)){document.querySelectorAll('[data-deyi-return]').forEach(link=>{link.href=state.url;link.addEventListener('click',()=>{try{sessionStorage.setItem(key,JSON.stringify({...state,restore:true}))}catch{}})})}}catch{}})();</script></body></html>

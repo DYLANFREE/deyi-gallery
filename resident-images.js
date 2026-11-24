@@ -24,7 +24,8 @@ function normalize(value,endpoint){
     const expected=(rest?'/api/residents/rest-image-assets/':'/api/residents/image-assets/')+item.imageId+'.png';
     if(item.url!==expected)throw Error('invalid_image_asset_url');
     const pair=item.resident+':'+item.mood;if(pairs.has(pair))throw Error('duplicate_image_slot');pairs.add(pair);
-    return{resident:item.resident,mood:item.mood,poseIndex:item.poseIndex,imageId:item.imageId,createdAt:item.createdAt,url:expected,src:origin+expected,width:item.width,height:item.height,source:'generated'};
+    let variation;if(item.variation!==undefined){const v=item.variation;if(!rest||!v||typeof v.title!=='string'||!v.title.trim()||v.title.length>80||/[\u0000-\u001f<>]/.test(v.title)||!/^\d{4}-\d{2}-\d{2}$/.test(v.day||'')||!stamp(v.day+'T00:00:00Z')||new Date(v.day+'T00:00:00Z').toISOString().slice(0,10)!==v.day)throw Error('invalid_image_variation');variation={title:v.title,day:v.day};}
+    return{...(variation?{variation}:{}),resident:item.resident,mood:item.mood,poseIndex:item.poseIndex,imageId:item.imageId,createdAt:item.createdAt,url:expected,src:origin+expected,width:item.width,height:item.height,source:'generated'};
   });
   return{format:'deyi-resident-images-v1',...(rest?{surface:'rest-anime'}:{}),revision:value.revision,publishedAt:value.publishedAt,images};
 }

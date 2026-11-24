@@ -24,11 +24,6 @@ const REST_ART=[
   {id:'fire',title:'灯下倒茶',file:'fire-tea.webp'},
   {id:'water',title:'雨窗听雨',file:'water-rain.webp'},
 ];
-const REST_TITLES={
-  wood:{normal:'窗边读书',happy:'午后茶歇',quiet:'靠窗放空'},
-  fire:{normal:'整理书架',happy:'灯下倒茶',quiet:'夜色与书'},
-  water:{normal:'雨后翻书',happy:'水边茶歇',quiet:'雨窗听雨'},
-};
 // 这层只展示已有图片。浏览与休息提醒都不触发图片模型。
 const FAST=new URLSearchParams(location.search).has('pets-fast'); // 测试钩子：短计时看休息接管
 const REST_AFTER_MS=FAST?14*1000:30*60*1000, REST_EVERY_MS=FAST?25*1000:45*60*1000, BREAK_MS=FAST?12*1000:45*1000;
@@ -87,11 +82,12 @@ function buildBreak(){
   const foot=document.createElement('div');foot.className='rp-break-foot';
   const note=document.createElement('div');note.className='rp-break-note';
   const caption=document.createElement('div');caption.className='rp-break-image-caption';
+  const feedStatus=document.createElement('p');feedStatus.className='rp-break-feed-status';feedStatus.hidden=true;feedStatus.setAttribute('role','status');
   const counter=document.createElement('div');counter.className='rp-break-counter';counter.setAttribute('aria-live','polite');counter.setAttribute('aria-atomic','true');
   const previous=document.createElement('button');previous.type='button';previous.className='rp-break-arrow';previous.setAttribute('aria-label','上一张插画');previous.textContent='‹';
   const next=document.createElement('button');next.type='button';next.className='rp-break-arrow';next.setAttribute('aria-label','下一张插画');next.textContent='›';
   const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='rp-break-dismiss';dismiss.textContent='让她先走';
-  card.append(img,loading,empty);stage.append(previous,card,next);foot.append(counter,caption,note,dismiss);veil.append(bubble,stage,foot);
+  card.append(img,loading,empty);stage.append(previous,card,next);foot.append(counter,caption,feedStatus,note,dismiss);veil.append(bubble,stage,foot);
   dismiss.addEventListener('click',hideBreak);
   previous.addEventListener('click',()=>moveBreakPhoto(-1));next.addEventListener('click',()=>moveBreakPhoto(1));
   veil.addEventListener('keydown',event=>{
@@ -111,7 +107,7 @@ function buildBreak(){
     if(Math.abs(dx)>=48&&Math.abs(dx)>Math.abs(dy)*1.3)moveBreakPhoto(dx<0?1:-1);
   });
   card.addEventListener('pointercancel',()=>{swipe=null;});
-  return{veil,card,img,loading,empty,bubble,note,caption,counter,previous,next,dismiss,selected:null,resident:null,position:0,failed:new Set(),browsing:false,open:false,loadToken:0,requested:null};
+  return{veil,card,img,loading,empty,bubble,note,caption,feedStatus,counter,previous,next,dismiss,selected:null,resident:null,position:0,failed:new Set(),browsing:false,open:false,loadToken:0,requested:null};
 }
 function showBreak(){
   if(breakEl&&document.body.contains(breakEl.veil))return;
@@ -137,11 +133,11 @@ function availableArt(){
     for(const image of images){
       const key=fallback.id+':'+image.imageId;
       if(seen.has(key)||breakEl?.failed.has(key))continue;
-      seen.add(key);items.push({key,resident:fallback.id,title:REST_TITLES[fallback.id][image.mood],src:image.src,imageId:image.imageId,createdAt:image.createdAt});
+      seen.add(key);items.push({key,resident:fallback.id,title:image.variation?.title||'馆中片刻',src:image.src,imageId:image.imageId,createdAt:image.createdAt});
     }
     if(!images.length){
       const key='initial:'+fallback.id;
-      if(!breakEl?.failed.has(key))items.push({key,resident:fallback.id,title:fallback.title,src:base+'images/residents/rest-anime/v1/'+fallback.file});
+      if(!breakEl?.failed.has(key))items.push({key,resident:fallback.id,title:fallback.title,initial:true,src:base+'images/residents/rest-anime/v1/'+fallback.file});
     }
   }
   return items;
@@ -164,7 +160,7 @@ function syncBreakArt(){
   if(album.previous.disabled&&[album.previous,album.next].includes(document.activeElement))album.dismiss.focus({preventScroll:true});
   if(!item){
     album.loadToken++;album.requested=null;album.img.hidden=true;album.loading.hidden=true;album.card.setAttribute('aria-busy','false');
-    album.counter.textContent='休息插画';album.caption.textContent='';
+    album.counter.textContent='休息插画';album.caption.textContent='';album.feedStatus.hidden=true;
     album.bubble.textContent='歇一会儿吧。';album.veil.removeAttribute('data-who');
     return;
   }
@@ -173,7 +169,10 @@ function syncBreakArt(){
   album.veil.dataset.who=item.resident;album.veil.style.setProperty('--c',person.color);
 
   album.counter.textContent=person.name+' · '+(items.indexOf(item)+1)+' / '+items.length;
-  album.caption.textContent=item.title+' · 休息插画'+(item.createdAt?' · '+new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(item.createdAt)):'');
+  const imageState=window.DeyiResidentRestImages?.getState();
+  album.feedStatus.hidden=!imageState?.unavailable&&!item.initial;
+  album.feedStatus.textContent=item.initial?'正在展示初始插画，新的图片暂时没有取到。':imageState?.unavailable?'暂时没取到更新，保留上次收到的图片。':'';
+  album.caption.textContent=item.title+(item.initial?' · 初始插画':' · 休息插画')+(item.createdAt?' · '+new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(item.createdAt)):'');
   if(album.requested===src)return;
   const token=++album.loadToken;album.requested=src;album.img.hidden=true;
   album.loading.hidden=false;album.card.setAttribute('aria-busy','true');

@@ -37,6 +37,8 @@
 .rp-break-counter{color:#fff9e9;font:14px/1.5 var(--serif,serif);letter-spacing:.6px;font-variant-numeric:tabular-nums}
 .rp-break-arrow:focus-visible,.rp-break-dismiss:focus-visible,.rp-rest-btn:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .rp-break-note{color:rgba(255,250,236,.78);font-size:11px;line-height:1.5}
+.rp-break-feed-status{margin:2px 0;max-width:34em;color:#fff0c9;font-size:13px;line-height:1.5}
+.rp-break-feed-status[hidden]{display:none}
 .rp-break-image-caption{color:rgba(255,250,236,.86);font-size:11px;line-height:1.5}
 .rp-break-dismiss{padding:6px 15px;min-height:34px;margin-top:4px;border-radius:999px;border:1px solid rgba(255,255,255,.55);
   background:rgba(255,255,255,.10);color:#fff;font-size:12px;cursor:pointer;transition:background .2s}

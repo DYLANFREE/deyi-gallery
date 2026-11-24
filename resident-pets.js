@@ -43,12 +43,46 @@ restBtn.addEventListener('click',()=>{restDue=performance.now()+REST_EVERY_MS;sh
 layer.append(restBtn);
 // ── 休息接管（Cat Gatekeeper 式：出现、占屏、停留、可提前请走）──
 let breakEl=null,breakTimer=0,breakClosing=false,breakReturnFocus=null;
+// Reuse decoded images. Only warm the first page and immediate neighbours.
+const artCache=new Map();
+function loadArt(src,priority='high'){
+  if(artCache.has(src)){
+    const entry=artCache.get(src);artCache.delete(src);artCache.set(src,entry);
+    if(priority==='high')entry.image.fetchPriority='high';
+    return entry;
+  }
+  const image=new Image();image.width=960;image.height=1280;image.draggable=false;
+  image.referrerPolicy='no-referrer';image.decoding='async';image.fetchPriority=priority;
+  const entry={image,ready:false,promise:null};
+  entry.promise=new Promise((resolve,reject)=>{
+    image.onload=async()=>{try{await image.decode();entry.ready=true;resolve(image);}catch(error){reject(error);}};
+    image.onerror=()=>reject(Error('rest_image_unavailable'));
+  });
+  entry.promise.catch(()=>{if(artCache.get(src)===entry)artCache.delete(src);});
+  artCache.set(src,entry);while(artCache.size>6)artCache.delete(artCache.keys().next().value);
+  image.src=src;return entry;
+}
+function mayPrefetch(){return !navigator.connection?.saveData&&!/^(slow-)?2g$/.test(navigator.connection?.effectiveType||'');}
+function warmNeighbours(items,index){
+  if(!mayPrefetch()||items.length<2)return;
+  for(const offset of [1,-1])loadArt(items[(index+offset+items.length)%items.length].src,'low').promise.catch(()=>{});
+}
+let warmTimer=0;
+function warmFirst(){
+  clearTimeout(warmTimer);if(!mayPrefetch()||breakEl?.open)return;
+  const state=window.DeyiResidentRestImages?.getState();if(state?.loading)return;
+  let index=0;try{index=Math.max(0,parseInt(localStorage.getItem('deyi-pets-next-break')||'0',10)||0)%REST_ART.length;}catch{}
+  const items=availableArt(),item=items.find(x=>x.resident===REST_ART[index].id)||items[0];
+  if(item)loadArt(item.src,'low').promise.catch(()=>{});
+}
+restBtn.addEventListener('pointerenter',warmFirst);restBtn.addEventListener('focus',warmFirst);
 function buildBreak(){
   const veil=document.createElement('div');veil.className='rp-break';veil.setAttribute('role','dialog');veil.setAttribute('aria-label','休息插画');veil.setAttribute('aria-modal','true');
   const stage=document.createElement('div');stage.className='rp-break-stage';
   const card=document.createElement('div');card.className='rp-break-card';
   const img=document.createElement('img');img.alt='';img.width=960;img.height=1280;img.draggable=false;
   const empty=document.createElement('div');empty.className='rp-break-empty';empty.hidden=true;empty.textContent='插画暂时没能打开';
+  const loading=document.createElement('div');loading.className='rp-break-loading';loading.hidden=true;loading.setAttribute('role','status');loading.textContent='正在打开这张图…';
   const bubble=document.createElement('div');bubble.className='rp-break-bubble';
   const foot=document.createElement('div');foot.className='rp-break-foot';
   const note=document.createElement('div');note.className='rp-break-note';
@@ -57,15 +91,7 @@ function buildBreak(){
   const previous=document.createElement('button');previous.type='button';previous.className='rp-break-arrow';previous.setAttribute('aria-label','上一张插画');previous.textContent='‹';
   const next=document.createElement('button');next.type='button';next.className='rp-break-arrow';next.setAttribute('aria-label','下一张插画');next.textContent='›';
   const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='rp-break-dismiss';dismiss.textContent='让她先走';
-  card.append(img,empty);stage.append(previous,card,next);foot.append(counter,caption,note,dismiss);veil.append(bubble,stage,foot);
-  img.referrerPolicy='no-referrer';
-  img.addEventListener('error',()=>{
-    if(!breakEl?.selected||breakClosing)return;
-    const failed=availableArt().find(item=>item.key===breakEl.selected);
-    breakEl.failed.add(breakEl.selected);
-    if(failed?.imageId)window.DeyiResidentRestImages?.markAssetFailed(failed.imageId);
-    syncBreakArt();
-  });
+  card.append(img,loading,empty);stage.append(previous,card,next);foot.append(counter,caption,note,dismiss);veil.append(bubble,stage,foot);
   dismiss.addEventListener('click',hideBreak);
   previous.addEventListener('click',()=>moveBreakPhoto(-1));next.addEventListener('click',()=>moveBreakPhoto(1));
   veil.addEventListener('keydown',event=>{
@@ -85,7 +111,7 @@ function buildBreak(){
     if(Math.abs(dx)>=48&&Math.abs(dx)>Math.abs(dy)*1.3)moveBreakPhoto(dx<0?1:-1);
   });
   card.addEventListener('pointercancel',()=>{swipe=null;});
-  return{veil,img,empty,bubble,note,caption,counter,previous,next,dismiss,selected:null,resident:null,position:0,failed:new Set(),browsing:false};
+  return{veil,card,img,loading,empty,bubble,note,caption,counter,previous,next,dismiss,selected:null,resident:null,position:0,failed:new Set(),browsing:false,open:false,loadToken:0,requested:null};
 }
 function showBreak(){
   if(breakEl&&document.body.contains(breakEl.veil))return;
@@ -94,7 +120,7 @@ function showBreak(){
   let idx=0;try{idx=Math.max(0,parseInt(localStorage.getItem('deyi-pets-next-break')||'0',10)||0)%REST_ART.length;}catch{}
   try{localStorage.setItem('deyi-pets-next-break',String((idx+1)%REST_ART.length));}catch{}
   breakClosing=false;breakReturnFocus=document.activeElement;breakEl.browsing=false;breakEl.bubble.textContent='';
-  breakEl.failed.clear();breakEl.resident=REST_ART[idx].id;breakEl.selected=null;
+  breakEl.failed.clear();breakEl.resident=REST_ART[idx].id;breakEl.selected=null;breakEl.requested=null;breakEl.open=true;
   syncBreakArt();
   document.body.append(breakEl.veil);
   (breakEl.next.disabled?breakEl.dismiss:breakEl.next).focus({preventScroll:true});
@@ -110,12 +136,12 @@ function availableArt(){
     images.sort((a,b)=>['normal','happy','quiet'].indexOf(a.mood)-['normal','happy','quiet'].indexOf(b.mood));
     for(const image of images){
       const key=fallback.id+':'+image.imageId;
-      if(seen.has(key)||breakEl.failed.has(key))continue;
+      if(seen.has(key)||breakEl?.failed.has(key))continue;
       seen.add(key);items.push({key,resident:fallback.id,title:REST_TITLES[fallback.id][image.mood],src:image.src,imageId:image.imageId,createdAt:image.createdAt});
     }
     if(!images.length){
       const key='initial:'+fallback.id;
-      if(!breakEl.failed.has(key))items.push({key,resident:fallback.id,title:fallback.title,src:base+'images/residents/rest-anime/v1/'+fallback.file});
+      if(!breakEl?.failed.has(key))items.push({key,resident:fallback.id,title:fallback.title,src:base+'images/residents/rest-anime/v1/'+fallback.file});
     }
   }
   return items;
@@ -132,12 +158,12 @@ function syncBreakArt(){
   const item=items.find(entry=>entry.key===album.selected)||items.find(entry=>entry.resident===album.resident)||items[Math.min(album.position,items.length-1)];
   album.selected=item?.key??null;
   album.position=Math.max(0,items.indexOf(item));
-  album.img.hidden=!item;album.empty.hidden=!!item;
+  album.empty.hidden=!!item;
   album.previous.disabled=items.length<2;album.next.disabled=items.length<2;
   album.note.textContent=album.browsing?'慢慢看，歇好了再回来。':'休息提醒 · '+Math.round(BREAK_MS/1000)+' 秒后收起';
   if(album.previous.disabled&&[album.previous,album.next].includes(document.activeElement))album.dismiss.focus({preventScroll:true});
   if(!item){
-    album.img.removeAttribute('src');album.img.alt='';
+    album.loadToken++;album.requested=null;album.img.hidden=true;album.loading.hidden=true;album.card.setAttribute('aria-busy','false');
     album.counter.textContent='休息插画';album.caption.textContent='';
     album.bubble.textContent='歇一会儿吧。';album.veil.removeAttribute('data-who');
     return;
@@ -145,14 +171,34 @@ function syncBreakArt(){
   const person=PEOPLE[item.resident],src=item.src;album.resident=item.resident;
   if(album.veil.dataset.who!==item.resident||!album.bubble.textContent)album.bubble.textContent=person.restLines[Math.floor(Math.random()*person.restLines.length)];
   album.veil.dataset.who=item.resident;album.veil.style.setProperty('--c',person.color);
-  if(album.img.src!==src)album.img.src=src;
-  album.img.alt=person.name+' · '+item.title;
+
   album.counter.textContent=person.name+' · '+(items.indexOf(item)+1)+' / '+items.length;
   album.caption.textContent=item.title+' · 休息插画'+(item.createdAt?' · '+new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(item.createdAt)):'');
+  if(album.requested===src)return;
+  const token=++album.loadToken;album.requested=src;album.img.hidden=true;
+  album.loading.hidden=false;album.card.setAttribute('aria-busy','true');
+  const current=()=>album.open&&!breakClosing&&album.loadToken===token&&album.selected===item.key;
+  const paint=image=>{
+    if(!current())return;
+    image.alt=person.name+' · '+item.title;image.hidden=false;
+    if(album.img!==image){album.img.replaceWith(image);album.img=image;}
+    album.loading.hidden=true;album.card.setAttribute('aria-busy','false');
+    warmNeighbours(items,items.indexOf(item));
+  };
+  const fail=()=>{
+    if(!current())return;
+    album.requested=null;album.failed.add(item.key);
+    if(item.imageId)window.DeyiResidentRestImages?.markAssetFailed(item.imageId);
+    syncBreakArt();
+  };
+  const entry=loadArt(src);if(entry.ready)paint(entry.image);else entry.promise.then(paint,fail);
 }
-window.DeyiResidentRestImages?.subscribe(()=>{if(breakEl&&document.body.contains(breakEl.veil))syncBreakArt();});
+window.DeyiResidentRestImages?.subscribe(()=>{
+  if(breakEl?.open&&!breakClosing)syncBreakArt();
+  else{clearTimeout(warmTimer);warmTimer=setTimeout(warmFirst,600);}
+});
 function hideBreak(){
-  if(!breakEl||breakClosing)return;breakClosing=true;
+  if(!breakEl||breakClosing)return;breakClosing=true;breakEl.open=false;breakEl.loadToken++;breakEl.requested=null;
   clearTimeout(breakTimer);
   breakEl.veil.classList.remove('rp-break-show');
   setTimeout(()=>{breakEl.veil.remove();breakClosing=false;if(breakReturnFocus?.isConnected)breakReturnFocus.focus({preventScroll:true});},reduced?0:280);

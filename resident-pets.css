@@ -24,7 +24,8 @@
 .rp-break-show .rp-break-stage{animation:rpArtEnter .36s ease both}
 @keyframes rpArtEnter{from{transform:translateY(5px);opacity:.72}to{transform:translateY(0);opacity:1}}
 .rp-break-card img{width:100%;height:100%;object-fit:contain;display:block}
-.rp-break-empty{height:100%;display:grid;place-items:center;padding:14px;text-align:center;color:#445044;font-size:13px}
+.rp-break-loading,.rp-break-empty{height:100%;display:grid;place-items:center;padding:14px;text-align:center;color:#445044;font-size:13px}
+.rp-break-loading{font-size:16px;color:#697866}
 .rp-break-card [hidden]{display:none}
 .rp-break-bubble{max-width:min(420px,calc(100vw - 44px));padding:8px 15px;border-radius:7px;border:1px solid var(--c,#3d6b52);
   background:#f6f2e8;color:#2d3c32;text-align:center;font:14px/1.65 var(--serif,serif);box-shadow:0 3px 20px rgba(0,0,0,.17)}

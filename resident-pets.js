@@ -18,12 +18,6 @@ const PEOPLE={
     '该歇口气啦。起来伸个懒腰，回来再继续。',
     '水都坐浑了。起来走两步，让它重新流起来。']},
 };
-// 每日动漫图由只读来源更新，首批图作为初始显示。
-const REST_ART=[
-  {id:'wood',title:'窗边读书',file:'wood-reading.webp'},
-  {id:'fire',title:'灯下倒茶',file:'fire-tea.webp'},
-  {id:'water',title:'雨窗听雨',file:'water-rain.webp'},
-];
 // 这层只展示已有图片。浏览与休息提醒都不触发图片模型。
 const FAST=new URLSearchParams(location.search).has('pets-fast'); // 测试钩子：短计时看休息接管
 const REST_AFTER_MS=FAST?14*1000:30*60*1000, REST_EVERY_MS=FAST?25*1000:45*60*1000, BREAK_MS=FAST?12*1000:45*1000;
@@ -62,139 +56,236 @@ function warmNeighbours(items,index){
   if(!mayPrefetch()||items.length<2)return;
   for(const offset of [1,-1])loadArt(items[(index+offset+items.length)%items.length].src,'low').promise.catch(()=>{});
 }
-let warmTimer=0;
-function warmFirst(){
-  clearTimeout(warmTimer);if(!mayPrefetch()||breakEl?.open)return;
-  const state=window.DeyiResidentRestImages?.getState();if(state?.loading)return;
-  let index=0;try{index=Math.max(0,parseInt(localStorage.getItem('deyi-pets-next-break')||'0',10)||0)%REST_ART.length;}catch{}
-  const items=availableArt(),item=items.find(x=>x.resident===REST_ART[index].id)||items[0];
-  if(item)loadArt(item.src,'low').promise.catch(()=>{});
+const BATCH_SIZE = 15;
+const DRAW_STORAGE = 'deyi-reviewed-rest-draw-v1';
+const dateLabel = new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'numeric',day:'numeric'});
+let drawn = new Set(), lastDraw = null, warmId = null, warmTimer = 0;
+try {
+  const saved=JSON.parse(localStorage.getItem(DRAW_STORAGE));
+  if (Array.isArray(saved?.ids)) drawn=new Set(saved.ids.filter(id=>typeof id==='string'));
+  if (typeof saved?.last==='string') lastDraw=saved.last;
+} catch {}
+
+function availableArt(){
+  const state=window.DeyiResidentRestImages?.getState();
+  if (state?.manifest?.format!=='deyi-reviewed-rest-album-v1') return [];
+  return state.manifest.images.filter(image=>!state.failedImageIds.includes(image.imageId));
 }
-restBtn.addEventListener('pointerenter',warmFirst);restBtn.addEventListener('focus',warmFirst);
-function buildBreak(){
-  const veil=document.createElement('div');veil.className='rp-break';veil.setAttribute('role','dialog');veil.setAttribute('aria-label','休息插画');veil.setAttribute('aria-modal','true');
-  const stage=document.createElement('div');stage.className='rp-break-stage';
-  const card=document.createElement('div');card.className='rp-break-card';
-  const img=document.createElement('img');img.alt='';img.width=960;img.height=1280;img.draggable=false;
-  const empty=document.createElement('div');empty.className='rp-break-empty';empty.hidden=true;empty.textContent='插画暂时没能打开';
-  const loading=document.createElement('div');loading.className='rp-break-loading';loading.hidden=true;loading.setAttribute('role','status');loading.textContent='正在打开这张图…';
-  const bubble=document.createElement('div');bubble.className='rp-break-bubble';
-  const foot=document.createElement('div');foot.className='rp-break-foot';
-  const note=document.createElement('div');note.className='rp-break-note';
-  const caption=document.createElement('div');caption.className='rp-break-image-caption';
-  const feedStatus=document.createElement('p');feedStatus.className='rp-break-feed-status';feedStatus.hidden=true;feedStatus.setAttribute('role','status');
-  const counter=document.createElement('div');counter.className='rp-break-counter';counter.setAttribute('aria-live','polite');counter.setAttribute('aria-atomic','true');
-  const previous=document.createElement('button');previous.type='button';previous.className='rp-break-arrow';previous.setAttribute('aria-label','上一张插画');previous.textContent='‹';
-  const next=document.createElement('button');next.type='button';next.className='rp-break-arrow';next.setAttribute('aria-label','下一张插画');next.textContent='›';
-  const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='rp-break-dismiss';dismiss.textContent='让她先走';
-  card.append(img,loading,empty);stage.append(previous,card,next);foot.append(counter,caption,feedStatus,note,dismiss);veil.append(bubble,stage,foot);
-  dismiss.addEventListener('click',hideBreak);
-  previous.addEventListener('click',()=>moveBreakPhoto(-1));next.addEventListener('click',()=>moveBreakPhoto(1));
+function rememberDraw(id,allowed,exhausted=false){
+  drawn=exhausted?new Set():new Set([...drawn].filter(value=>allowed.has(value)));
+  drawn.add(id);lastDraw=id;warmId=null;
+  try {localStorage.setItem(DRAW_STORAGE,JSON.stringify({ids:[...drawn],last:lastDraw}));} catch {}
+}
+function pickRandom(items,consume){
+  if (!items.length) return null;
+  const allowed=new Set(items.map(image=>image.imageId));
+  let remaining=items.filter(image=>!drawn.has(image.imageId));
+  const exhausted=remaining.length===0;
+  if (exhausted) remaining=items.length===1?items:items.filter(image=>image.imageId!==lastDraw);
+  const next=remaining.find(image=>image.imageId===warmId)||remaining[Math.floor(Math.random()*remaining.length)];
+  if (consume) {
+    rememberDraw(next.imageId,allowed,exhausted);
+  } else warmId=next.imageId;
+  return next;
+}
+function warmFirst(){
+  if (!mayPrefetch()||breakEl?.open) return;
+  const image=pickRandom(availableArt(),false);
+  if (image) loadArt(image.src,'low').promise.catch(()=>{});
+}
+restBtn.addEventListener('pointerenter',warmFirst);
+restBtn.addEventListener('focus',warmFirst);
+
+function element(tag,cls,text){
+  const node=document.createElement(tag);
+  if(cls)node.className=cls;
+  if(text)node.textContent=text;
+  return node;
+}
+function button(cls,label,action){
+  const node=element('button',cls,label);
+  node.type='button';node.addEventListener('click',action);return node;
+}
+function keepOpen(){
+  breakEl.browsing=true;
+  clearTimeout(breakTimer);
+}
+function makeViewer(){
+  const veil=element('div','rp-break');
+  veil.setAttribute('role','dialog');veil.setAttribute('aria-label','休息插画');veil.setAttribute('aria-modal','true');
+  const stage=element('div','rp-break-stage'),card=element('div','rp-break-card');
+  const img=element('img');img.alt='';img.width=960;img.height=1280;img.draggable=false;img.hidden=true;
+  const empty=element('div','rp-break-empty');empty.hidden=true;
+  const loading=element('div','rp-break-loading','正在打开这张图…');loading.hidden=true;loading.setAttribute('role','status');
+  const bubble=element('div','rp-break-bubble'),foot=element('div','rp-break-foot');
+  const counter=element('div','rp-break-counter'),caption=element('div','rp-break-image-caption'),note=element('div','rp-break-note');
+  counter.setAttribute('aria-live','polite');counter.setAttribute('aria-atomic','true');
+  const feedStatus=element('p','rp-break-feed-status');feedStatus.hidden=true;feedStatus.setAttribute('role','status');
+  const previous=button('rp-break-arrow','‹',()=>move(-1)),next=button('rp-break-arrow','›',()=>move(1));
+  previous.setAttribute('aria-label','上一张插画');next.setAttribute('aria-label','下一张插画');
+  const actions=element('div','rp-album-actions');
+  const random=button('rp-album-action','随机一张',randomPhoto);
+  const browse=button('rp-album-action','全部图片',openGrid);
+  const dismiss=button('rp-break-dismiss','让她先走',hideBreak);
+  actions.append(random,browse,dismiss);foot.append(counter,caption,feedStatus,actions,note);
+  card.append(img,loading,empty);stage.append(previous,card,next);
+  const shelf=element('section','rp-album-shelf');shelf.setAttribute('aria-label','全部图片');shelf.hidden=true;
+  const heading=element('h2','rp-album-heading','全部图片'),filters=element('div','rp-album-filters');
+  filters.setAttribute('role','group');filters.setAttribute('aria-label','按人物筛选');
+  const grid=element('div','rp-album-grid'),pager=element('div','rp-album-pager');
+  const backPage=button('rp-album-action','上一页',()=>gridPage(-1)),morePage=button('rp-album-action','下一页',()=>gridPage(1)),pageInfo=element('span');
+  pageInfo.setAttribute('aria-live','polite');pager.append(backPage,pageInfo,morePage);
+  for (const [id,label] of [['all','全部'],...Object.entries(PEOPLE).map(([id,p])=>[id,p.name])]) {
+    const f=button('rp-album-filter',label,()=>{
+      breakEl.filter=id;breakEl.page=0;breakEl.gridSig=null;sync();
+    });
+    f.dataset.person=id;filters.append(f);
+  }
+  const total=element('span','rp-album-total');heading.append(total);
+  shelf.append(heading,filters,grid,pager);veil.append(bubble,stage,shelf,foot);
   veil.addEventListener('keydown',event=>{
     if(event.key==='Escape'){event.preventDefault();hideBreak();return;}
-    if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();moveBreakPhoto(event.key==='ArrowRight'?1:-1);return;}
+    if(!shelf.hidden&&event.target.closest('.rp-album-grid')&&['ArrowRight','ArrowLeft'].includes(event.key)){
+      const nodes=[...grid.querySelectorAll('button')],idx=nodes.indexOf(event.target);
+      event.preventDefault();nodes[Math.max(0,Math.min(nodes.length-1,idx+(event.key==='ArrowRight'?1:-1)))]?.focus();return;
+    }
+    if(shelf.hidden&&['ArrowRight','ArrowLeft'].includes(event.key)){event.preventDefault();move(event.key==='ArrowRight'?1:-1);return;}
     if(event.key==='Tab'){
-      const controls=[previous,next,dismiss].filter(button=>!button.disabled),first=controls[0],last=controls.at(-1);
-      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
-      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+      const controls=[...veil.querySelectorAll('button:not(:disabled)')].filter(b=>!b.closest('[hidden]'));
+      if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
+      else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
     }
   });
-  let swipe=null;
-  card.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'||event.pointerType==='pen'){swipe={id:event.pointerId,x:event.clientX,y:event.clientY};try{card.setPointerCapture?.(event.pointerId);}catch{}}});
-  card.addEventListener('pointerup',event=>{
-    if(!swipe||swipe.id!==event.pointerId)return;
-    const dx=event.clientX-swipe.x,dy=event.clientY-swipe.y;swipe=null;
-    if(Math.abs(dx)>=48&&Math.abs(dx)>Math.abs(dy)*1.3)moveBreakPhoto(dx<0?1:-1);
+  let swipe;
+  card.addEventListener('pointerdown',e=>{
+    if(e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+    swipe={id:e.pointerId,x:e.clientX,y:e.clientY};try {card.setPointerCapture(e.pointerId);}catch{}
+  });
+  card.addEventListener('pointerup',e=>{
+    if(!swipe||swipe.id!==e.pointerId)return;
+    const dx=e.clientX-swipe.x,dy=e.clientY-swipe.y;swipe=null;
+    if(Math.abs(dx)>=48&&Math.abs(dx)>Math.abs(dy)*1.3)move(dx<0?1:-1);
   });
   card.addEventListener('pointercancel',()=>{swipe=null;});
-  return{veil,card,img,loading,empty,bubble,note,caption,feedStatus,counter,previous,next,dismiss,selected:null,resident:null,position:0,failed:new Set(),browsing:false,open:false,loadToken:0,requested:null};
+  return {veil,bubble,stage,card,img,empty,loading,note,counter,caption,feedStatus,random,browse,dismiss,
+    previous,next,shelf,filters,grid,pager,backPage,morePage,pageInfo,total,loadToken:0,selected:null,
+    position:0,requested:null,browsing:false,open:false,mode:'photo',filter:'all',page:0,gridSig:null};
 }
-function showBreak(){
-  if(breakEl&&document.body.contains(breakEl.veil))return;
-  if(!breakEl)breakEl=buildBreak();
-  // 轮流：记住上次是谁（本地存储），刷新后接着轮
-  let idx=0;try{idx=Math.max(0,parseInt(localStorage.getItem('deyi-pets-next-break')||'0',10)||0)%REST_ART.length;}catch{}
-  try{localStorage.setItem('deyi-pets-next-break',String((idx+1)%REST_ART.length));}catch{}
-  breakClosing=false;breakReturnFocus=document.activeElement;breakEl.browsing=false;breakEl.bubble.textContent='';
-  breakEl.failed.clear();breakEl.resident=REST_ART[idx].id;breakEl.selected=null;breakEl.requested=null;breakEl.open=true;
-  syncBreakArt();
-  document.body.append(breakEl.veil);
-  (breakEl.next.disabled?breakEl.dismiss:breakEl.next).focus({preventScroll:true});
-  requestAnimationFrame(()=>breakEl.veil.classList.add('rp-break-show'));
+function showBreak(grid=false,automatic=false){
+  if(breakEl?.open||breakClosing)return;
+  breakEl??=makeViewer();
+  const a=breakEl;
+  breakReturnFocus=document.activeElement;
+  Object.assign(a,{open:true,selected:null,position:0,requested:null,browsing:!automatic,
+    mode:grid?'grid':'photo',filter:'all',page:0,gridSig:null});
+  a.bubble.textContent='';a.img.hidden=true;
+  document.body.append(a.veil);sync();
+  (grid?a.filters.firstElementChild:a.random.disabled?a.dismiss:a.random).focus({preventScroll:true});
+  requestAnimationFrame(()=>a.veil.classList.add('rp-break-show'));
   clearTimeout(breakTimer);
-  breakTimer=setTimeout(hideBreak,BREAK_MS);
+  if(automatic)breakTimer=setTimeout(hideBreak,BREAK_MS);
 }
-function availableArt(){
-  const state=window.DeyiResidentRestImages?.getState(),items=[];
-  for(const fallback of REST_ART){
-    const images=(state?.manifest?.images||[]).filter(image=>image.resident===fallback.id&&!state.failedImageIds.includes(image.imageId));
-    const seen=new Set();
-    images.sort((a,b)=>['normal','happy','quiet'].indexOf(a.mood)-['normal','happy','quiet'].indexOf(b.mood));
-    for(const image of images){
-      const key=fallback.id+':'+image.imageId;
-      if(seen.has(key)||breakEl?.failed.has(key))continue;
-      seen.add(key);items.push({key,resident:fallback.id,title:image.variation?.title||'馆中片刻',src:image.src,imageId:image.imageId,createdAt:image.createdAt});
-    }
-    if(!images.length){
-      const key='initial:'+fallback.id;
-      if(!breakEl?.failed.has(key))items.push({key,resident:fallback.id,title:fallback.title,initial:true,src:base+'images/residents/rest-anime/v1/'+fallback.file});
-    }
+function gridPage(delta){
+  const a=breakEl;
+  a.page+=delta;sync();a.grid.querySelector('button')?.focus({preventScroll:true});a.shelf.scrollTop=0;
+}
+function openGrid(){
+  const a=breakEl;
+  keepOpen();a.mode='grid';a.loadToken++;a.requested=null;a.img.hidden=true;
+  a.page=0;a.filter='all';
+  a.gridSig=null;sync();a.filters.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+}
+function display(image){
+  keepOpen();breakEl.mode='photo';breakEl.selected=image?.imageId||null;
+  if(image&&image.imageId!==lastDraw) rememberDraw(image.imageId,new Set(availableArt().map(i=>i.imageId)));
+  sync();
+}
+function randomPhoto(){
+  const next=pickRandom(availableArt(),true);if(!next)return;
+  display(next);breakEl.random.focus({preventScroll:true});
+}
+function move(delta){
+  const items=availableArt();if(!items.length)return;
+  const at=items.findIndex(i=>i.imageId===breakEl.selected);
+  display(items[(Math.max(0,at)+delta+items.length)%items.length]);
+}
+function drawGrid(a,items,state){
+  const filtered=items.filter(item=>a.filter==='all'||item.resident===a.filter);
+  a.total.textContent=filtered.length+' 张';
+  const pages=Math.max(1,Math.ceil(filtered.length/BATCH_SIZE));
+  a.page=Math.max(0,Math.min(a.page,pages-1));
+  for(const f of a.filters.children)f.setAttribute('aria-pressed',String(f.dataset.person===a.filter));
+  const sig=[state?.manifest?.revision,a.filter,a.page,filtered.length,state?.loading,state?.unavailable].join('/');
+  if(sig===a.gridSig)return;
+  a.gridSig=sig;
+  const focused=document.activeElement?.closest('.rp-album-tile');
+  const visible=filtered.slice(a.page*BATCH_SIZE,(a.page+1)*BATCH_SIZE);
+  a.grid.replaceChildren();
+  for(const item of visible){
+    const who=PEOPLE[item.resident].name,title=item.variation?.title||'馆中片刻';
+    const tile=button('rp-album-tile','',()=>{
+      display(item);a.browse.focus({preventScroll:true});
+    });
+    tile.dataset.id=item.imageId;
+    tile.setAttribute('aria-label',who+' · '+title+' · '+dateLabel.format(new Date(item.createdAt)));
+    const image=element('img');image.alt='';image.width=180;image.height=240;image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';
+    image.src=item.src+'?size=thumb';
+    const name=element('span','rp-tile-title',title),byline=element('span','rp-tile-byline',who+' · '+dateLabel.format(new Date(item.createdAt)));
+    tile.append(image,name,byline);a.grid.append(tile);
   }
-  return items;
+  if (!visible.length) a.grid.append(element('p','rp-album-empty',state?.loading?'正在打开相册…':state?.unavailable?'暂时没能打开相册。':'还没有通过审核的图片。'));
+  a.pager.hidden=pages<=1;a.pageInfo.textContent=(a.page+1)+' / '+pages;
+  a.backPage.disabled=a.page===0;a.morePage.disabled=a.page>=pages-1;
+  if(focused&&!focused.isConnected){
+    const replacement=[...a.grid.children].find(t=>t.dataset.id===focused.dataset.id);
+    (replacement||a.filters.querySelector('[aria-pressed="true"]'))?.focus({preventScroll:true});
+  }
 }
-function moveBreakPhoto(direction){
-  if(!breakEl||breakClosing||!document.body.contains(breakEl.veil))return;
-  const items=availableArt();if(items.length<2)return;
-  const position=items.findIndex(item=>item.key===breakEl.selected);
-  breakEl.selected=items[(position+direction+items.length)%items.length].key;
-  breakEl.browsing=true;clearTimeout(breakTimer);syncBreakArt();
-}
-function syncBreakArt(){
-  const album=breakEl,items=availableArt();
-  const item=items.find(entry=>entry.key===album.selected)||items.find(entry=>entry.resident===album.resident)||items[Math.min(album.position,items.length-1)];
-  album.selected=item?.key??null;
-  album.position=Math.max(0,items.indexOf(item));
-  album.empty.hidden=!!item;
-  album.previous.disabled=items.length<2;album.next.disabled=items.length<2;
-  album.note.textContent=album.browsing?'慢慢看，歇好了再回来。':'休息提醒 · '+Math.round(BREAK_MS/1000)+' 秒后收起';
-  if(album.previous.disabled&&[album.previous,album.next].includes(document.activeElement))album.dismiss.focus({preventScroll:true});
+function sync(){
+  const a=breakEl;if(!a?.open||breakClosing)return;
+  const items=availableArt(),state=window.DeyiResidentRestImages?.getState();
+  const isGrid=a.mode==='grid';
+  a.shelf.hidden=!isGrid;a.stage.hidden=isGrid;a.bubble.hidden=isGrid;a.counter.hidden=isGrid;
+  a.caption.hidden=isGrid;a.browse.hidden=isGrid;a.veil.classList.toggle('rp-grid-open',isGrid);
+  a.random.disabled=!items.length;a.browse.textContent='全部图片 · '+items.length;
+  a.previous.disabled=a.next.disabled=items.length<2;
+  a.feedStatus.hidden=!state?.unavailable;
+  a.feedStatus.textContent=state?.unavailable?(items.length?'更新暂不可用，正在看上次收到的相册。':'暂时没能取得相册。'):'';
+  a.note.textContent=a.browsing?'':'休息提醒 · '+Math.round(BREAK_MS/1000)+' 秒后收起';
+  if(isGrid){drawGrid(a,items,state);return;}
+  const item=items.find(i=>i.imageId===a.selected)||(a.selected?items[Math.min(a.position,items.length-1)]:pickRandom(items,true));
+  a.selected=item?.imageId||null;
+  a.empty.hidden=!!item;
   if(!item){
-    album.loadToken++;album.requested=null;album.img.hidden=true;album.loading.hidden=true;album.card.setAttribute('aria-busy','false');
-    album.counter.textContent='休息插画';album.caption.textContent='';album.feedStatus.hidden=true;
-    album.bubble.textContent='歇一会儿吧。';album.veil.removeAttribute('data-who');
+    a.loadToken++;a.requested=null;a.img.hidden=true;a.loading.hidden=true;a.card.setAttribute('aria-busy','false');
+    a.empty.textContent=state?.loading?'正在打开相册…':state?.unavailable?'相册暂时无法打开。':'还没有通过审核的图片。';
+    a.counter.textContent='休息插画';a.caption.textContent='';a.bubble.textContent='歇一会儿吧。';delete a.veil.dataset.who;
     return;
   }
-  const person=PEOPLE[item.resident],src=item.src;album.resident=item.resident;
-  if(album.veil.dataset.who!==item.resident||!album.bubble.textContent)album.bubble.textContent=person.restLines[Math.floor(Math.random()*person.restLines.length)];
-  album.veil.dataset.who=item.resident;album.veil.style.setProperty('--c',person.color);
-
-  album.counter.textContent=person.name+' · '+(items.indexOf(item)+1)+' / '+items.length;
-  const imageState=window.DeyiResidentRestImages?.getState();
-  album.feedStatus.hidden=!imageState?.unavailable&&!item.initial;
-  album.feedStatus.textContent=item.initial?'正在展示初始插画，新的图片暂时没有取到。':imageState?.unavailable?'暂时没取到更新，保留上次收到的图片。':'';
-  album.caption.textContent=item.title+(item.initial?' · 初始插画':' · 休息插画')+(item.createdAt?' · '+new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(item.createdAt)):'');
-  if(album.requested===src)return;
-  const token=++album.loadToken;album.requested=src;album.img.hidden=true;
-  album.loading.hidden=false;album.card.setAttribute('aria-busy','true');
-  const current=()=>album.open&&!breakClosing&&album.loadToken===token&&album.selected===item.key;
+  a.position=items.indexOf(item);
+  const person=PEOPLE[item.resident],title=item.variation?.title||'馆中片刻';
+  if(a.veil.dataset.who!==item.resident||!a.bubble.textContent)a.bubble.textContent=person.restLines[Math.floor(Math.random()*person.restLines.length)];
+  a.veil.dataset.who=item.resident;a.veil.style.setProperty('--c',person.color);
+  a.counter.textContent=person.name+' · '+(a.position+1)+' / '+items.length;
+  a.caption.textContent=title+' · '+dateLabel.format(new Date(item.createdAt));
+  if(a.requested===item.src)return;
+  const token=++a.loadToken;a.requested=item.src;a.img.hidden=true;a.loading.hidden=false;a.card.setAttribute('aria-busy','true');
+  const current=()=>a.open&&!breakClosing&&a.mode==='photo'&&a.loadToken===token&&a.selected===item.imageId;
   const paint=image=>{
     if(!current())return;
-    image.alt=person.name+' · '+item.title;image.hidden=false;
-    if(album.img!==image){album.img.replaceWith(image);album.img=image;}
-    album.loading.hidden=true;album.card.setAttribute('aria-busy','false');
-    warmNeighbours(items,items.indexOf(item));
+    image.alt=person.name+' · '+title;image.hidden=false;if(a.img!==image){a.img.replaceWith(image);a.img=image;}
+    a.loading.hidden=true;a.card.setAttribute('aria-busy','false');warmNeighbours(items,a.position);
   };
-  const fail=()=>{
-    if(!current())return;
-    album.requested=null;album.failed.add(item.key);
-    if(item.imageId)window.DeyiResidentRestImages?.markAssetFailed(item.imageId);
-    syncBreakArt();
-  };
-  const entry=loadArt(src);if(entry.ready)paint(entry.image);else entry.promise.then(paint,fail);
+  const entry=loadArt(item.src);
+  if(entry.ready)paint(entry.image);else entry.promise.then(paint,()=>{
+    if(current())window.DeyiResidentRestImages?.markAssetFailed(item.imageId);
+  });
 }
 window.DeyiResidentRestImages?.subscribe(()=>{
-  if(breakEl?.open&&!breakClosing)syncBreakArt();
-  else{clearTimeout(warmTimer);warmTimer=setTimeout(warmFirst,600);}
+  const allowed=new Set(availableArt().map(i=>i.src));
+  for(const url of artCache.keys())if(!allowed.has(url))artCache.delete(url);
+  if(breakEl?.open&&!breakClosing)sync();
+  else {clearTimeout(warmTimer);warmTimer=setTimeout(warmFirst,600);}
 });
 function hideBreak(){
   if(!breakEl||breakClosing)return;breakClosing=true;breakEl.open=false;breakEl.loadToken++;breakEl.requested=null;
@@ -214,9 +305,10 @@ function checkRest(){
   if(!restDue||now<=restDue)return;
   if(document.visibilityState!=='visible'){restDue=now+60000;return;}
   restDue=now+REST_EVERY_MS;
-  showBreak();
+  showBreak(false,true);
 }
 setInterval(checkRest,FAST?2000:30000);
+if(location.hash==='#rest-album'||location.hash==='#rest')showBreak(location.hash==='#rest-album');
 if(FAST)window.__RP=()=>({due:Math.round(restDue-performance.now()),breakOpen:!!breakEl&&document.body.contains(breakEl.veil)});
 
 })();

@@ -6,12 +6,12 @@ const stamp=value=>typeof value==='string'&&Number.isFinite(Date.parse(value));
 const localHost=host=>['localhost','127.0.0.1','[::1]','::1'].includes(host);
 function endpointFor(value,location,endpointPath='/api/residents/images'){
   if(!['/api/residents/images','/api/residents/rest-images'].includes(endpointPath))throw Error('invalid_image_endpoint');
-  const fallback=localHost(location.hostname)?new URL(endpointPath,location.href):new URL('https://45.134.36.23'+endpointPath);
+  const fallback=localHost(location.hostname)?new URL(endpointPath,location.href):new URL('https://23.27.20.230'+endpointPath);
   const url=new URL(value||fallback.href,location.href);
   if(url.username||url.password||url.hash||url.search||url.pathname!==endpointPath)throw Error('invalid_image_endpoint');
   if(localHost(location.hostname)){
     if(!localHost(url.hostname)||!['http:','https:'].includes(url.protocol))throw Error('local_image_endpoint_required');
-  }else if(url.protocol!=='https:'||url.hostname!=='45.134.36.23')throw Error('image_endpoint_refused');
+  }else if(url.protocol!=='https:'||url.hostname!=='23.27.20.230')throw Error('image_endpoint_refused');
   return url.href;
 }
 function normalize(value,endpoint){

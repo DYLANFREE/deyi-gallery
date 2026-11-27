@@ -46,13 +46,13 @@ function independentMessages(feed,resident,since){
     .sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||a.id.localeCompare(b.id));
 }
 function endpointFor(value,location){
-  const fallback=localHost(location.hostname)?new URL('/api/residents/tables',location.href):new URL('https://45.134.36.23/api/residents/tables');
+  const fallback=localHost(location.hostname)?new URL('/api/residents/tables',location.href):new URL('https://23.27.20.230/api/residents/tables');
   const url=new URL(value||fallback.href,location.href);
   if(url.username||url.password||url.hash)throw Error('invalid_resident_endpoint');
   // A local acceptance page must never silently read the production people.
   if(localHost(location.hostname)){
     if(!localHost(url.hostname)||!['http:','https:'].includes(url.protocol))throw Error('local_resident_endpoint_required');
-  }else if(url.protocol!=='https:'||url.hostname!=='45.134.36.23')throw Error('resident_endpoint_refused');
+  }else if(url.protocol!=='https:'||url.hostname!=='23.27.20.230')throw Error('resident_endpoint_refused');
   return url.href;
 }
 function makeClient({location,storage,fetcher,schedule,cancel,endpoint,interval=180000,since}){

@@ -24,12 +24,12 @@ function normalize(value){
  return{format:'deyi-gallery-fish-v1',revision:value.revision,publishedAt:value.publishedAt,updatedAt:value.updatedAt,resident:{id:'fish',name:'大肥鱼'},entries};
 }
 function endpointFor(value,location){
- const fallback=local(location.hostname)?new URL(endpointPath,location.href):new URL('https://45.134.36.23'+endpointPath);
+ const fallback=local(location.hostname)?new URL(endpointPath,location.href):new URL('https://23.27.20.230'+endpointPath);
  const url=new URL(value||fallback.href,location.href);
  if(url.username||url.password||url.search||url.hash||url.pathname!==endpointPath)throw Error('invalid_fish_endpoint');
  if(local(location.hostname)){
   if(!local(url.hostname)||!['http:','https:'].includes(url.protocol))throw Error('local_fish_endpoint_required');
- }else if(url.protocol!=='https:'||url.hostname!=='45.134.36.23'||url.port)throw Error('fish_endpoint_refused');
+ }else if(url.protocol!=='https:'||url.hostname!=='23.27.20.230'||url.port)throw Error('fish_endpoint_refused');
  return url.href;
 }
 function makeClient({location,storage,fetcher,schedule,cancel,endpoint,interval=180000}){
